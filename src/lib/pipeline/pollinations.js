@@ -1,8 +1,5 @@
-import { POLLINATIONS_BASE, POLLINATIONS_API_KEY, POLLINATIONS_REFERRER } from "./config.js";
+import { POLLINATIONS_BASE, POLLINATIONS_API_KEY } from "./config.js";
 
-/**
- * Chat completion via Pollinations OpenAI-compatible endpoint.
- */
 export async function chatCompletion({ model, messages, json = false, seed, temperature }) {
   const body = { model, messages };
   if (json) body.response_format = { type: "json_object" };
@@ -23,9 +20,7 @@ export async function chatCompletion({ model, messages, json = false, seed, temp
   return data.choices?.[0]?.message?.content || "";
 }
 
-/**
- * Audio generation via openai-audio model.
- */
+
 export async function generateAudio({ script, voice = "shimmer", developerPrompt }) {
   const body = {
     model: "openai-audio",
@@ -53,18 +48,15 @@ export async function generateAudio({ script, voice = "shimmer", developerPrompt
   return base64Audio;
 }
 
-/**
- * Image generation via Pollinations image endpoint. Returns image bytes.
- */
+
 export async function generateImage({ prompt, width = 1024, height = 1024, model = "flux", seed = 42 }) {
   const params = new URLSearchParams({
     width: String(width),
     height: String(height),
-    model,
+    model : "zimage",
     seed: String(seed),
     nologo: "true",
     private: "true",
-    referrer: POLLINATIONS_REFERRER,
     key: POLLINATIONS_API_KEY,
   });
 

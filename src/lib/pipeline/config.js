@@ -3,7 +3,6 @@ dotenv.config();
 
 export const POLLINATIONS_API_KEY = process.env.POLLINATIONS_API_KEY || "";
 export const POLLINATIONS_BASE = "https://gen.pollinations.ai";
-export const POLLINATIONS_REFERRER = "elixpoart";
 
 export const CLOUDINARY_CLOUD_NAME = process.env.CLOUDINARY_CLOUD_NAME || "";
 export const CLOUDINARY_API_KEY = process.env.CLOUDINARY_API_KEY || "";

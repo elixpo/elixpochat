@@ -2,6 +2,7 @@
   "name": "elixpo-chat",
   "version": "2.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",

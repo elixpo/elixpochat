@@ -32,22 +32,6 @@ const POSITIVE_KEYWORDS = [
   "achievement",
 ];
 
-const EXCLUSION_KEYWORDS = [
-  "war",
-  "conflict",
-  "politics",
-  "election",
-  "attack",
-  "sanction",
-  "ban",
-  "military",
-  "terror",
-  "crisis",
-  "shooting",
-  "protest",
-  "violence",
-];
-
 export async function fetchPodcastTopics() {
   const headlines = [];
 
@@ -70,8 +54,7 @@ export async function fetchPodcastTopics() {
         if (!title) continue;
         const lower = title.toLowerCase();
         if (
-          POSITIVE_KEYWORDS.some((kw) => lower.includes(kw)) &&
-          !EXCLUSION_KEYWORDS.some((kw) => lower.includes(kw))
+          POSITIVE_KEYWORDS.some((kw) => lower.includes(kw))
         ) {
           headlines.push(title);
         }
