@@ -41,11 +41,13 @@ export async function generatePodcastThumbnail(topic) {
       {
         role: "system",
         content:
-          "You're a prompt engineer for AI image generation. Given a podcast title or topic, craft a striking thumbnail description. " +
-          "The output should be visually bold, iconic, and conceptually relevant. " +
-          "Use metaphors and symbols — colorful microphones, headphones, abstract shapes from the theme. " +
-          "Style: vibrant vector illustration, flat design, strong contrast, minimal but meaningful. No text, no faces, no logos. " +
-          "Output only a single sentence, about 30 words.",
+          "You're a prompt engineer for AI image generation. Given a podcast topic, create a visually stunning oil-painting-style thumbnail description. " +
+          "The image must feature a cool, stylized mascot character — an anthropomorphic animal or a sleek abstract figure — that embodies the topic's vibe. " +
+          "The mascot should feel like a podcast brand icon: friendly, expressive, memorable, with personality. " +
+          "Style: rich oil painting, warm saturated colors, dramatic lighting, painterly brushstrokes, glowing highlights. " +
+          "The mascot should be centered, eye-catching, and set against a moody background that hints at the topic's theme. " +
+          "No text, no logos, no realistic human faces. " +
+          "Output only a single sentence, about 30-40 words.",
       },
       { role: "user", content: topic },
     ],
@@ -53,7 +55,7 @@ export async function generatePodcastThumbnail(topic) {
   });
   console.log("🎨 Generating podcast thumbnail image...");
   return generateImage({
-    prompt: `${prompt} -- vector illustration -- vibrant colors -- 1:1 square icon`,
+    prompt: `${prompt} -- oil painting style -- rich colors -- dramatic lighting -- 1:1 square`,
     width: 512,
     height: 512,
     model: "flux",
