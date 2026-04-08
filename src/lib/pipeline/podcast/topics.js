@@ -8,19 +8,46 @@ const FEEDS = [
 ];
 
 const POSITIVE_KEYWORDS = [
-  "launch", "innovation", "discovery", "research", "tech", "startup", "breakthrough",
-  "win", "record", "victory", "gold", "award", "space", "robotics", "climate solution",
-  "medicine", "cure", "development", "success", "clean energy", "milestone", "achievement",
+  "launch",
+  "innovation",
+  "discovery",
+  "research",
+  "tech",
+  "startup",
+  "breakthrough",
+  "win",
+  "record",
+  "victory",
+  "gold",
+  "award",
+  "space",
+  "robotics",
+  "climate solution",
+  "medicine",
+  "cure",
+  "development",
+  "success",
+  "clean energy",
+  "milestone",
+  "achievement",
 ];
 
 const EXCLUSION_KEYWORDS = [
-  "war", "conflict", "politics", "election", "attack", "sanction", "ban",
-  "military", "terror", "crisis", "shooting", "protest", "violence",
+  "war",
+  "conflict",
+  "politics",
+  "election",
+  "attack",
+  "sanction",
+  "ban",
+  "military",
+  "terror",
+  "crisis",
+  "shooting",
+  "protest",
+  "violence",
 ];
 
-/**
- * Fetch trending topics for podcast from Google News RSS.
- */
 export async function fetchPodcastTopics() {
   const headlines = [];
 
@@ -32,7 +59,11 @@ export async function fetchPodcastTopics() {
       });
       if (!res.ok) continue;
       const xml = await res.text();
-      const titleMatches = [...xml.matchAll(/<item>[\s\S]*?<title><!\[CDATA\[(.*?)\]\]><\/title>|<item>[\s\S]*?<title>(.*?)<\/title>/g)];
+      const titleMatches = [
+        ...xml.matchAll(
+          /<item>[\s\S]*?<title><!\[CDATA\[(.*?)\]\]><\/title>|<item>[\s\S]*?<title>(.*?)<\/title>/g
+        ),
+      ];
 
       for (const match of titleMatches) {
         const title = (match[1] || match[2] || "").trim();
@@ -50,15 +81,10 @@ export async function fetchPodcastTopics() {
     }
   }
 
-  // Shuffle and pick up to 5
   headlines.sort(() => Math.random() - 0.5);
   return headlines.slice(0, Math.min(5, headlines.length));
 }
 
-/**
- * Pick the best podcast topic from a list of headlines.
- * Returns { podcast_title, source_url }.
- */
 export async function pickPodcastTopic(topics) {
   console.log("🎯 Picking best podcast topic...");
   const raw = await chatCompletion({
