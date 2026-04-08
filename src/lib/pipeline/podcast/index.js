@@ -5,7 +5,7 @@ import path from "path";
 import { uploadBuffer, deleteFolder } from "../storage.js";
 import { fetchPodcastTopics, pickPodcastTopic } from "./topics.js";
 import { getLatestInfo, generatePodcastScript } from "./creator.js";
-import { generatePodcastAudio } from "./audio.js";
+import { generatePodcastSpeech, generatePodcastMusic } from "./audio.js";
 import { generatePodcastThumbnail, generatePodcastBanner } from "./images.js";
 
 const BACKUP_FILE = path.resolve("tmp/podcastBackup.json");
@@ -81,16 +81,26 @@ export async function runPodcastPipeline(db) {
     console.log("✅ Script generated.");
   }
 
-  // Audio generation
+  // Speech generation (elevenlabs)
   if (backup.status === "script_generated") {
-    console.log("🔊 Generating audio...");
-    const audioBase64 = await generatePodcastAudio(podcastScript || backup.podcast_script);
-    const audioBuffer = Buffer.from(audioBase64, "base64");
-    const audioUrl = await uploadBuffer(audioBuffer, `podcast/${podcastId}`, `podcast_${podcastId}`, "video");
+    console.log("🔊 Generating speech...");
+    const speechBuffer = await generatePodcastSpeech(podcastScript || backup.podcast_script);
+    const audioUrl = await uploadBuffer(speechBuffer, `podcast/${podcastId}`, `podcast_${podcastId}`, "video");
     backup.audio_url = audioUrl;
+    backup.status = "speech_uploaded";
+    logBackup(backup);
+    console.log("✅ Speech uploaded.");
+  }
+
+  // Background music generation (acestep)
+  if (backup.status === "speech_uploaded") {
+    console.log("🎵 Generating background music...");
+    const musicBuffer = await generatePodcastMusic(topicName, 60);
+    const musicUrl = await uploadBuffer(musicBuffer, `podcast/${podcastId}`, `podcast_music_${podcastId}`, "video");
+    backup.music_url = musicUrl;
     backup.status = "audio_uploaded";
     logBackup(backup);
-    console.log("✅ Audio uploaded.");
+    console.log("✅ Background music uploaded.");
   }
 
   // Thumbnail & Banner

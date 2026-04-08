@@ -1,4 +1,5 @@
 import { chatCompletion } from "../pollinations.js";
+import { POLLINATIONS_API_KEY } from "../config.js";
 
 const FEEDS = [
   "https://news.google.com/rss/headlines/section/topic/TECHNOLOGY?hl=en&gl=US&ceid=US:en",
@@ -72,6 +73,9 @@ export async function pickPodcastTopic(topics) {
   console.log("🎯 Picking best podcast topic...");
   const raw = await chatCompletion({
     model: "gemini-fast",
+    headers: { "Content-Type": "application/json" ,
+      "Authorization": `Bearer ${POLLINATIONS_API_KEY}`
+    },
     messages: [
       {
         role: "system",

@@ -116,8 +116,7 @@ export async function runNewsPipeline(db) {
     if (item.status === "script_generated" || item.status?.includes("audio_failed")) {
       try {
         const voice = VOICES[index % VOICES.length];
-        const audioBase64 = await safeRetry(() => generateVoiceover(item.script, index, voice));
-        const audioBuffer = Buffer.from(audioBase64, "base64");
+        const audioBuffer = await safeRetry(() => generateVoiceover(item.script, index, voice));
         const audioUrl = await uploadBuffer(audioBuffer, `news/${overallId}/${newsId}`, `news${index}`, "video");
         item.audio_url = audioUrl;
         item.status = "audio_uploaded";

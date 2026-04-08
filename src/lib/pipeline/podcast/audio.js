@@ -1,30 +1,35 @@
-import { generateAudio } from "../pollinations.js";
-
-const DEVELOPER_PROMPT =
-  "Okay, here's the vibe — you're an energetic, fast-talking podcast host for Elixpo Podcast! who's naturally funny, curious, and a little playful. " +
-  "Welcome your listeners to the Elixpo Podcast and introduce the topic with excitement and greeting. " +
-  `For your context the current date/time is ${new Date().toISOString()}. ` +
-  "Start *right away* with the topic — no intros, no greetings, no identity stuff. Just dive in with enthusiasm. " +
-  "Sound totally human: it's okay to say things like 'um', 'hmm', or take a short breath before a big detail. Feel free to *slightly* stutter, casually reword something, or chuckle if the moment's funny — that's what makes it real. " +
-  "Add light humor where it fits — just subtle, natural stuff. If something sounds ridiculous or cool, say it like you mean it. Imagine you're on a podcast and your goal is to keep listeners smiling and hooked. " +
-  "Speed up naturally — you're excited to tell this story — but still clear. Use pauses for effect, like after a big stat, or before a surprising twist. Don't rush, but don't drag either. " +
-  "Smile through your voice. Be curious, expressive, slightly sassy if it works. Bring real charm, like you're sharing this over coffee with a friend. " +
-  "No robotic reading. No filler. No fake facts. Just bring the script to life with humor, breath, warmth, and energy. " +
-  "The whole thing should feel like a fun, punchy, real-person monologue that lasts 3 to 4 minutes, tops. Leave listeners grinning, curious, or saying 'whoa'. " +
-  "Remember, you're not just reading a script — you're performing it with personality and flair! " +
-  "The audio piece should be at least 3-4 minutes long on the context.";
+import fs from "fs";
+import path from "path";
+import { generateSpeech, generateMusic } from "../pollinations.js";
 
 /**
- * Generate podcast audio from script text.
- * @returns {string} Base64-encoded WAV audio
+ * Generate podcast speech audio via elevenlabs TTS.
+ * @returns {Buffer} MP3 audio buffer
  */
-export async function generatePodcastAudio(script, voice = "shimmer") {
-  console.log("🎙️ Generating podcast audio...");
-  const base64Audio = await generateAudio({
-    script,
-    voice,
-    developerPrompt: DEVELOPER_PROMPT,
-  });
-  console.log("✅ Podcast audio generated.");
-  return base64Audio;
+export async function generatePodcastSpeech(script, voice = "shimmer") {
+  console.log("🎙️ Generating podcast speech (elevenlabs)...");
+  const buffer = await generateSpeech({ text: script, voice });
+  console.log("✅ Podcast speech generated.");
+  return buffer;
 }
+
+/**
+ * Generate background music via acestep.
+ * @param {string} topicName - Used to generate a fitting music prompt
+ * @param {number} duration - Duration in seconds
+ * @returns {Buffer} MP3 audio buffer
+ */
+export async function generatePodcastMusic(topicName, duration = 60) {
+  console.log("🎵 Generating background music (acestep)...");
+  const prompt = `Calm, upbeat, lo-fi podcast background music inspired by the theme: ${topicName}. Soft beats, ambient, no vocals.`;
+  const buffer = await generateMusic({ prompt, duration });
+  console.log("✅ Background music generated.");
+  return buffer;
+}
+
+
+generatePodcastMusic("Decoding The Vibe: Social Media's New Blame Game").then((musicBuffer) => {
+  const outPath = path.join("podcast_music_test.mp3");
+  fs.writeFileSync(outPath, musicBuffer);
+  console.log(`🎵 Music saved → ${outPath} (${musicBuffer.length} bytes)`);
+});

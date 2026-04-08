@@ -49,6 +49,32 @@ export async function generateAudio({ script, voice = "shimmer", developerPrompt
 }
 
 
+/**
+ * Text-to-speech via elevenlabs model (GET /audio/{text}).
+ * Returns raw audio buffer (mp3).
+ */
+export async function generateSpeech({ text, voice = "shimmer" }) {
+  const encoded = encodeURIComponent(text);
+  const url = `${POLLINATIONS_BASE}/audio/${encoded}?voice=${voice}&model=elevenlabs&key=${POLLINATIONS_API_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Speech gen error ${res.status}: ${await res.text()}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
+/**
+ * Music generation via acestep model (GET /audio/{text}).
+ * @param {string} prompt - Music description or lyrics
+ * @param {number} duration - Duration in seconds (default 30)
+ * Returns raw audio buffer (mp3).
+ */
+export async function generateMusic({ prompt, duration = 30 }) {
+  const encoded = encodeURIComponent(prompt);
+  const url = `${POLLINATIONS_BASE}/audio/${encoded}?model=acestep&duration=${duration}&key=${POLLINATIONS_API_KEY}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Music gen error ${res.status}: ${await res.text()}`);
+  return Buffer.from(await res.arrayBuffer());
+}
+
 export async function generateImage({ prompt, width = 1024, height = 1024, model = "flux", seed = 42 }) {
   const params = new URLSearchParams({
     width: String(width),
