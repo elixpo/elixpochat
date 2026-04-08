@@ -1,11 +1,30 @@
+# dependencies
 /node_modules
-/tmp
+package-lock.json
+
+# next.js
+/.next
+/out
+
+# cloudflare
+/.open-next
+/.wrangler
+.dev.vars
+
+# env
 .env
-*.tldr
-*.jpg
-/*.png
+.env.local
+.env.production
+
+# secrets
+elixpoChatServiceKey.json
+
+# media
 *.wav
 *.mp3
-elixpoChatServiceKey.json
+
+# misc
+*.tldr
 *.txt
 .vercel
+.DS_Store
