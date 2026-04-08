@@ -8,8 +8,8 @@
     "start": "next start",
     "preview": "npx @opennextjs/cloudflare build && npx wrangler dev",
     "deploy": "npx @opennextjs/cloudflare build && npx wrangler deploy",
-    "db:migrate": "wrangler d1 execute elixpo-chat-db --local --file=./schema/schema.sql",
-    "db:migrate:prod": "wrangler d1 execute elixpo-chat-db --remote --file=./schema/schema.sql"
+    "db:migrate": "wrangler d1 migrations apply elixpo-chat-db --local",
+    "db:migrate:prod": "wrangler d1 migrations apply elixpo-chat-db --remote"
   },
   "dependencies": {
     "next": "^15.3.0",

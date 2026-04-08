@@ -23,7 +23,3 @@ CREATE TABLE IF NOT EXISTS podcasts (
   podcast_banner_url TEXT,
   created_at TEXT DEFAULT (datetime('now'))
 );
-
--- Seed example gen_stats rows (update via your Python pipeline)
--- INSERT OR REPLACE INTO gen_stats (key, data) VALUES ('news', '{"latestNewsId":"...","latestNewsThumbnail":"...","latestNewsSummary":"...","latestNewsDate":"..."}');
--- INSERT OR REPLACE INTO gen_stats (key, data) VALUES ('podcast', '{"latestPodcastID":"...","latestPodcastName":"...","latestPodcastThumbnail":"..."}');

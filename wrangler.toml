@@ -12,6 +12,7 @@ CORS_ORIGIN = "https://chat.elixpo.com"
 binding = "DB"
 database_name = "elixpo-chat-db"
 database_id = "YOUR_D1_DATABASE_ID"
+migrations_dir = "worker/migrations"
 
 # Cloudflare KV Namespace (caching)
 [[kv_namespaces]]
