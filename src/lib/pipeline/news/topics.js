@@ -33,17 +33,12 @@ function extractKeywords(title) {
   return new Set(title.toLowerCase().split(/\s+/).filter((w) => w.length > 3));
 }
 
-/**
- * Fetch trending news headlines from Google News RSS across categories.
- * Filters for positive content and deduplicates by keyword overlap.
- */
 export async function fetchTrendingTopics() {
   console.log("🔍 Fetching trending topics...");
   const headlines = [];
   const seenKeywords = [];
 
   const categories = Object.keys(CATEGORIZED_FEEDS);
-  // Shuffle categories for variety
   categories.sort(() => Math.random() - 0.5);
 
   for (const category of categories) {
@@ -58,7 +53,6 @@ export async function fetchTrendingTopics() {
       if (!res.ok) continue;
 
       const xml = await res.text();
-      // Simple XML title extraction without a full parser
       const titleMatches = [...xml.matchAll(/<item>[\s\S]*?<title><!\[CDATA\[(.*?)\]\]><\/title>|<item>[\s\S]*?<title>(.*?)<\/title>/g)];
 
       for (const match of titleMatches) {

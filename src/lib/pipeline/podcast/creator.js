@@ -1,8 +1,5 @@
 import { chatCompletion } from "../pollinations.js";
 
-/**
- * Fetch detailed info about a topic using perplexity-fast (web search).
- */
 export async function getLatestInfo(topicName) {
   console.log(`🔍 Fetching latest info for: ${topicName}`);
   const content = await chatCompletion({
@@ -18,9 +15,6 @@ export async function getLatestInfo(topicName) {
   return content;
 }
 
-/**
- * Generate a podcast script (1000-1500 words) from research content.
- */
 export async function generatePodcastScript(infoMarkdown, topicName) {
   console.log("⏳ Generating podcast script...");
   const now = new Date().toISOString();
@@ -37,7 +31,7 @@ export async function generatePodcastScript(infoMarkdown, topicName) {
     "Don't include repetitive words in the greeting!";
 
   const script = await chatCompletion({
-    model: "openai",
+    model: "gemini-fast",
     messages: [
       { role: "system", content: systemPrompt },
       {
