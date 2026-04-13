@@ -21,7 +21,6 @@ export default function NewsPage() {
 
   // Subtitle state
   interface SubLine { text: string; speaker: "male" | "female"; start: number; end: number; }
-  const subLines = useRef<SubLine[]>([]);
   const [activeSubLine, setActiveSubLine] = useState<SubLine | null>(null);
 
   const audioRefs = useRef<HTMLAudioElement[]>([]);
@@ -67,11 +66,34 @@ export default function NewsPage() {
     if (!audio) return;
 
     const onTimeUpdate = () => {
-      setCurrentTime(audio.currentTime);
+      const t = audio.currentTime;
+      setCurrentTime(t);
       setDuration(audio.duration || 0);
-      // Update active subtitle
-      const found = subLines.current.find((s) => audio.currentTime >= s.start && audio.currentTime < s.end) || null;
-      setActiveSubLine((prev) => found?.text === prev?.text ? prev : found);
+
+      // Find active timeline entry, then compute which chunk within it
+      const tl: TimelineEntry[] = items[currentIdx]?.timeline || [];
+      const entry = tl.find((e) => t >= e.start && t < e.end);
+      if (!entry) { setActiveSubLine(null); return; }
+
+      // Split entry into ~50 char chunks
+      const words = entry.content.split(/\s+/);
+      const chunks: string[] = [];
+      let cur = "";
+      for (const w of words) {
+        if (cur.length + w.length + 1 > 50 && cur) { chunks.push(cur); cur = w; }
+        else cur = cur ? cur + " " + w : w;
+      }
+      if (cur) chunks.push(cur);
+
+      // Pick chunk based on time position within the entry
+      const progress = (t - entry.start) / (entry.end - entry.start);
+      const chunkIdx = Math.min(Math.floor(progress * chunks.length), chunks.length - 1);
+
+      setActiveSubLine((prev) => {
+        const text = chunks[chunkIdx];
+        if (prev?.text === text) return prev;
+        return { text, speaker: entry.type as "male" | "female", start: entry.start, end: entry.end };
+      });
     };
     const onEnded = () => {
       if (currentIdx < items.length - 1) {
@@ -91,28 +113,6 @@ export default function NewsPage() {
 
     updateGradient(items[currentIdx]);
 
-    // Build subtitle chunks from timeline
-    const tl: TimelineEntry[] = items[currentIdx]?.timeline || [];
-    const lines: SubLine[] = [];
-    for (const entry of tl) {
-      const words = entry.content.split(/\s+/);
-      const chunks: string[] = [];
-      let cur = "";
-      for (const w of words) {
-        if (cur.length + w.length + 1 > 60 && cur) { chunks.push(cur); cur = w; }
-        else cur = cur ? cur + " " + w : w;
-      }
-      if (cur) chunks.push(cur);
-      const dur = entry.end - entry.start;
-      const totalChars = chunks.reduce((s, t) => s + t.length, 0);
-      let offset = entry.start;
-      for (const chunk of chunks) {
-        const chunkDur = totalChars > 0 ? (chunk.length / totalChars) * dur : dur / chunks.length;
-        lines.push({ text: chunk, speaker: entry.type as "male" | "female", start: offset, end: offset + chunkDur });
-        offset += chunkDur;
-      }
-    }
-    subLines.current = lines;
     setActiveSubLine(null);
 
     return () => {
