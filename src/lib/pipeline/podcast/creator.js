@@ -42,7 +42,7 @@ export async function generatePodcastScript(infoMarkdown, topicName) {
     "CRITICAL: Output ONLY the spoken words as one continuous flowing paragraph. NO newlines between sentences. NO music cues, NO sound effects, NO stage directions, NO parentheticals. NO bold text, NO asterisks, NO markdown. Just pure, clean, flowing spoken prose in a single block. " +
     "End with a thoughtful, confident wrap-up that feels like a real podcast conclusion. " +
     "Speak only based on the provided content — don't invent unrelated details. " +
-    "Generate a 5-minute script (1800-2200 words). The script must be long enough for a full 5-minute narration. " +
+    "Generate a script of exactly 900-1100 words. The TTS voice speaks at ~150 words per minute with pauses and breathing, so 1000 words = ~5 minutes of audio. Do NOT exceed 1100 words. " +
     "Don't include repetitive words in the greeting!";
 
   const raw = await chatCompletion({
@@ -51,7 +51,7 @@ export async function generatePodcastScript(infoMarkdown, topicName) {
       { role: "system", content: systemPrompt },
       {
         role: "user",
-        content: `Based on this content about '${topicName}':\n\n${infoMarkdown}\n\nWrite a detailed podcast script of 1800–2200 words (5 minutes). Go deep, explain context, tell the full story. Write it as one continuous flowing block of text with natural fillers like umm, hmm, you know.`,
+        content: `Based on this content about '${topicName}':\n\n${infoMarkdown}\n\nWrite a podcast script of 900-1100 words (5 minutes at speaking pace). Go deep but be concise. One continuous flowing block with natural fillers.`,
       },
     ],
     seed: Math.floor(Math.random() * 1000),
