@@ -17,7 +17,7 @@ export const MODELS = {
   promptWriter: "gemini-fast",
   audioSpeech: "openai-audio",
   imageGen: "zimage",
-  transcription: "whisper",
+  transcription: "scribe",
 };
 
 // ── Voices & Hosts ──

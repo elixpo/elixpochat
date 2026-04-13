@@ -54,9 +54,6 @@ async function transcribeChunk(chunkBuffer, filename) {
   const formData = new FormData();
   formData.append("file", new Blob([chunkBuffer]), filename);
   formData.append("model", MODELS.transcription);
-  formData.append("response_format", "verbose_json");
-  formData.append("timestamp_granularities[]", "segment");
-  formData.append("timestamp_granularities[]", "word");
 
   const res = await fetch(`${POLLINATIONS_BASE}/v1/audio/transcriptions`, {
     method: "POST",
