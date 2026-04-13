@@ -22,7 +22,8 @@ export const MODELS = {
 
 // ── Voices ──
 export const NEWS_VOICES = ["shimmer", "ash", "shimmer", "ash", "shimmer", "ash", "shimmer"];
-export const PODCAST_VOICE = "shimmer";
+export const PODCAST_VOICE_FEMALE = "shimmer";
+export const PODCAST_VOICE_MALE = "ash";
 
 // ── Limits ──
 export const MAX_NEWS_ITEMS = 7;

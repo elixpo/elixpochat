@@ -1,30 +1,111 @@
+import fs from "fs";
+import path from "path";
+import { execSync } from "child_process";
 import { generateAudio, transcribeAudio } from "../pollinations.js";
 import { compressAudio } from "../compress.js";
+import { PODCAST_VOICE_FEMALE, PODCAST_VOICE_MALE } from "../config.js";
 import { PODCAST_TTS_PROMPT } from "../prompts.js";
-import { PODCAST_VOICE } from "../config.js";
-import path from "path";
 
 const TMP = path.resolve("tmp/podcast");
 
 /**
- * Generate podcast speech + transcript.
- * Compresses WAV→MP3, transcribes, returns both.
- * @returns {{ buffer: Buffer, transcript: object }}
+ * Generate podcast speech from parsed sections.
+ * Each [MALE]/[FEMALE] section gets its own audio with the right voice.
+ * Concatenated into one final audio. Returns buffer, transcript, and
+ * a timeline mapping each section to its time range in the final audio.
+ *
+ * @param {Array<{type: string, content: string}>} sections - Parsed script sections (male/female/image)
+ * @returns {{ buffer: Buffer, transcript: object, timeline: Array<{type: string, content: string, start: number, end: number}> }}
  */
-export async function generatePodcastSpeech(script, voice = PODCAST_VOICE) {
-  console.log("🎙️ Generating podcast speech...");
-  const base64 = await generateAudio({ script, voice, developerPrompt: PODCAST_TTS_PROMPT });
-  const rawBuffer = Buffer.from(base64, "base64");
+export async function generatePodcastSpeech(sections) {
+  if (!fs.existsSync(TMP)) fs.mkdirSync(TMP, { recursive: true });
 
-  const buffer = compressAudio(rawBuffer, path.join(TMP, "speech"));
-  console.log(`✅ Podcast speech compressed (${(buffer.length / 1024).toFixed(0)}KB)`);
+  const speechSections = sections.filter((s) => s.type === "male" || s.type === "female");
+  const segmentPaths = [];
+  const segmentDurations = [];
 
-  // console.log("📝 Transcribing podcast audio...");
-  // const transcript = await transcribeAudio(buffer, "podcast.mp3");
-  // console.log(`✅ Transcript: ${transcript.segments?.length || 0} segments`);
+  for (let i = 0; i < speechSections.length; i++) {
+    const section = speechSections[i];
+    const voice = section.type === "male" ? PODCAST_VOICE_MALE : PODCAST_VOICE_FEMALE;
+    const segPath = path.join(TMP, `segment_${i}.mp3`);
 
-  // return { buffer, transcript };
+    console.log(`🎙️ [${i + 1}/${speechSections.length}] ${section.type} (${voice})...`);
+    const base64 = await generateAudio({
+      script: section.content,
+      voice,
+      developerPrompt: PODCAST_TTS_PROMPT,
+    });
+    const rawBuffer = Buffer.from(base64, "base64");
+    const compressed = compressAudio(rawBuffer, path.join(TMP, `segment_${i}`));
+    fs.writeFileSync(segPath, compressed);
+    segmentPaths.push(segPath);
+
+    // Get duration of this segment via ffprobe
+    let dur = 0;
+    try {
+      const raw = execSync(`ffprobe -v error -show_entries format=duration -of csv=p=0 "${segPath}" 2>/dev/null`).toString().trim();
+      dur = parseFloat(raw) || 0;
+    } catch { dur = 0; }
+    segmentDurations.push(dur);
+
+    console.log(`  ✅ Segment ${i + 1}: ${dur.toFixed(1)}s (${(compressed.length / 1024).toFixed(0)}KB)`);
+  }
+
+  // Concatenate all segments
+  console.log("🔗 Concatenating segments...");
+  const listPath = path.join(TMP, "segments.txt");
+  fs.writeFileSync(listPath, segmentPaths.map((p) => `file '${p}'`).join("\n"));
+
+  const finalPath = path.join(TMP, "audio.mp3");
+  try {
+    execSync(`ffmpeg -y -f concat -safe 0 -i "${listPath}" -codec:a libmp3lame -b:a 128k "${finalPath}" 2>/dev/null`);
+  } catch {
+    console.warn("  ⚠️ Concat failed, merging buffers");
+    fs.writeFileSync(finalPath, Buffer.concat(segmentPaths.map((p) => fs.readFileSync(p))));
+  }
+
+  const buffer = fs.readFileSync(finalPath);
+  console.log(`✅ Final audio: ${(buffer.length / 1024).toFixed(0)}KB`);
+
+  // Build timeline — maps each section (speech + image) to a time range
+  const timeline = [];
+  let speechIdx = 0;
+  let runningTime = 0;
+
+  for (const section of sections) {
+    if (section.type === "male" || section.type === "female") {
+      const dur = segmentDurations[speechIdx] || 0;
+      timeline.push({
+        type: section.type,
+        content: section.content,
+        start: Math.round(runningTime * 100) / 100,
+        end: Math.round((runningTime + dur) * 100) / 100,
+      });
+      runningTime += dur;
+      speechIdx++;
+    } else if (section.type === "image") {
+      // Image appears at the current time position
+      timeline.push({
+        type: "image",
+        content: section.content,
+        start: Math.round(runningTime * 100) / 100,
+        end: Math.round(runningTime * 100) / 100, // instant marker
+      });
+    }
+  }
+
+  // Save timeline
+  fs.writeFileSync(path.join(TMP, "timeline.json"), JSON.stringify(timeline, null, 2));
+  console.log(`📋 Timeline: ${timeline.length} entries`);
+
+  // Cleanup segment files
+  for (const p of segmentPaths) if (fs.existsSync(p)) fs.unlinkSync(p);
+  if (fs.existsSync(listPath)) fs.unlinkSync(listPath);
+
+  // Transcribe
+  console.log("📝 Transcribing final audio...");
+  const transcript = await transcribeAudio(buffer, "podcast.mp3");
+  console.log(`✅ Transcript: ${transcript.segments?.length || 0} segments`);
+
+  return { buffer, transcript, timeline };
 }
-
-
-generatePodcastSpeech("Welcome to the Elixpo Podcast, and today we’re taking a front-row seat to a story about the Chilean sky and a brand-new telescope that just unveiled the cosmos in a way we’ve never really seen before. It’s April 13th, 2026, and yes, out in Chile, on a high, quiet slope called Cerro Pachón, astronomers have been waiting for this moment—because this isn’t just “a new photo.” This is the first release of images from the Vera C. Rubin Observatory, and the images are already being described as unprecedented in detail. Imagine standing in a museum where you’ve seen every painting through a soft, slightly foggy glass… and then, all at once, the glass clears. The distant galaxies snap into sharper focus. The cosmic neighborhoods start to look like neighborhoods, not smudges. And—perhaps most exciting—thousands of new asteroids are showing up, as if the night sky just opened a drawer and spilled its contents onto our doorstep. So, what exactly is Rubin, and why does this week’s release feel like a milestone so huge it almost sounds unbelievable? Well, the observatory combines the world’s largest digital camera with an 8.4-meter telescope, and that camera isn’t like the old “take one picture, save one picture” approach. It’s built for sweeping the sky, repeatedly, systematically, like a time-lapse filmmaker who never gets tired. The first images include vivid views of the Virgo Cluster, which is one of the major galaxy gatherings in our local cosmic neighborhood. And then there are these breathtaking glimpses of star-forming regions like the Trifid and Lagoon Nebulae—places about 9,000 light-years away where gas and dust are actively birthing new stars. ")
