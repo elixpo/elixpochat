@@ -9,22 +9,17 @@ import { getLatestInfo, generatePodcastScript } from "./creator.js";
 import { generatePodcastSpeech } from "./audio.js";
 import { generatePodcastThumbnail, generatePodcastBanner } from "./images.js";
 
-const TMP_DIR = path.resolve("tmp");
-const BACKUP_FILE = path.join(TMP_DIR, "podcastBackup.json");
+const TMP_ROOT = path.resolve("tmp/podcast");
+const BACKUP_FILE = path.join(TMP_ROOT, "_backup.json");
 const CLOUDINARY_ROOT = "elixpochat/podcast";
 
 function ensureTmp() {
-  if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+  if (!fs.existsSync(TMP_ROOT)) fs.mkdirSync(TMP_ROOT, { recursive: true });
 }
 
 function cleanupTmp() {
-  const prefixes = ["podcast_", "podcastBackup"];
-  for (const file of fs.readdirSync(TMP_DIR)) {
-    if (prefixes.some((p) => file.startsWith(p))) {
-      fs.unlinkSync(path.join(TMP_DIR, file));
-    }
-  }
-  console.log("🧹 Cleaned up podcast tmp files.");
+  fs.rmSync(TMP_ROOT, { recursive: true, force: true });
+  console.log("🧹 Cleaned up tmp/podcast/");
 }
 
 function logBackup(state) {
@@ -35,6 +30,10 @@ function logBackup(state) {
 function loadBackup() {
   if (!fs.existsSync(BACKUP_FILE)) return null;
   return JSON.parse(fs.readFileSync(BACKUP_FILE, "utf-8"));
+}
+
+function writeMetadata(filePath, data) {
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
 }
 
 function generatePodcastId(podcastName) {
@@ -78,47 +77,35 @@ export async function runPodcastPipeline(db) {
       status: "topic_stored",
     };
     logBackup(backup);
-    console.log(`📌 Topic stored: ${topicName} | ID: ${podcastId}`);
+    console.log(`📌 Topic: ${topicName} | ID: ${podcastId}`);
   }
 
-  const folder = CLOUDINARY_ROOT; // Fixed path — overwrites in-place every run
-
-  // Script generation
+  // Step 1: Script
   if (backup.status === "topic_stored") {
     console.log("📝 Generating podcast script...");
     const info = await getLatestInfo(topicName);
     podcastScript = await generatePodcastScript(info, topicName);
     backup.podcast_script = podcastScript;
     backup.status = "script_generated";
+
+    fs.writeFileSync(path.join(TMP_ROOT, "script.txt"), podcastScript, "utf-8");
     logBackup(backup);
     console.log("✅ Script generated.");
   }
 
-  // Speech + transcript
+  // Step 2: Thumbnail + Banner (after topic is decided)
   if (backup.status === "script_generated") {
-    console.log("🔊 Generating speech...");
-    const { buffer: speechBuffer, transcript } = await generatePodcastSpeech(podcastScript || backup.podcast_script);
-    const audioUrl = await uploadBuffer(speechBuffer, folder, "audio", "video");
-    const transcriptUrl = await uploadBuffer(Buffer.from(JSON.stringify(transcript)), folder, "transcript", "raw");
-    backup.audio_url = audioUrl;
-    backup.transcript_url = transcriptUrl;
-    backup.status = "audio_uploaded";
-    logBackup(backup);
-    console.log("✅ Speech + transcript uploaded.");
-  }
-
-  // Images
-  if (backup.status === "audio_uploaded") {
     console.log("🎨 Generating images...");
+
     const rawThumb = await generatePodcastThumbnail(topicName);
-    const thumbBuffer = compressImage(rawThumb, "podcast_thumbnail");
-    fs.writeFileSync(path.join(TMP_DIR, "podcast_thumbnail.jpg"), thumbBuffer);
-    const thumbUrl = await uploadBuffer(thumbBuffer, folder, "thumbnail");
+    const thumbBuffer = compressImage(rawThumb, path.join(TMP_ROOT, "thumbnail"));
+    fs.writeFileSync(path.join(TMP_ROOT, "thumbnail.jpg"), thumbBuffer);
+    const thumbUrl = await uploadBuffer(thumbBuffer, CLOUDINARY_ROOT, "thumbnail");
 
     const rawBanner = await generatePodcastBanner(topicName);
-    const bannerBuffer = compressImage(rawBanner, "podcast_banner");
-    fs.writeFileSync(path.join(TMP_DIR, "podcast_banner.jpg"), bannerBuffer);
-    const bannerUrl = await uploadBuffer(bannerBuffer, folder, "banner");
+    const bannerBuffer = compressImage(rawBanner, path.join(TMP_ROOT, "banner"));
+    fs.writeFileSync(path.join(TMP_ROOT, "banner.jpg"), bannerBuffer);
+    const bannerUrl = await uploadBuffer(bannerBuffer, CLOUDINARY_ROOT, "banner");
 
     backup.thumbnail_url = thumbUrl;
     backup.banner_url = bannerUrl;
@@ -127,18 +114,34 @@ export async function runPodcastPipeline(db) {
     console.log("✅ Images uploaded.");
   }
 
-  // Write to D1 and cleanup
+  // Step 3: Speech + Transcript
   if (backup.status === "images_uploaded") {
+    console.log("🔊 Generating speech...");
+    const { buffer: speechBuffer, transcript } = await generatePodcastSpeech(podcastScript || backup.podcast_script);
+
+    fs.writeFileSync(path.join(TMP_ROOT, "audio.mp3"), speechBuffer);
+    fs.writeFileSync(path.join(TMP_ROOT, "transcript.json"), JSON.stringify(transcript, null, 2));
+
+    const audioUrl = await uploadBuffer(speechBuffer, CLOUDINARY_ROOT, "audio", "video");
+    const transcriptUrl = await uploadBuffer(Buffer.from(JSON.stringify(transcript)), CLOUDINARY_ROOT, "transcript", "raw");
+
+    backup.audio_url = audioUrl;
+    backup.transcript_url = transcriptUrl;
+    backup.status = "audio_uploaded";
+    logBackup(backup);
+    console.log("✅ Speech + transcript uploaded.");
+  }
+
+  // Step 4: Save to D1 + write metadata
+  if (backup.status === "audio_uploaded") {
     console.log("💾 Saving to database...");
 
     await db
       .prepare(
         "INSERT OR REPLACE INTO podcasts (id, podcast_name, podcast_audio_url, podcast_music_url, podcast_transcript_url, podcast_thumbnail_url, podcast_banner_url, topic_source) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
       )
-      .bind(podcastId, topicName, backup.audio_url, backup.music_url || "", backup.transcript_url || "", backup.thumbnail_url, backup.banner_url, topicSource)
+      .bind(podcastId, topicName, backup.audio_url, "", backup.transcript_url || "", backup.thumbnail_url, backup.banner_url, topicSource)
       .run();
-
-    // No need to delete old — fixed paths overwrite in-place
 
     const statsData = JSON.stringify({
       latestPodcastID: podcastId,
@@ -148,7 +151,22 @@ export async function runPodcastPipeline(db) {
     });
     await db.prepare("INSERT OR REPLACE INTO gen_stats (key, data) VALUES (?, ?)").bind("podcast", statsData).run();
 
-    // cleanupTmp();
+    // Write full metadata to tmp
+    writeMetadata(path.join(TMP_ROOT, "metadata.json"), {
+      id: podcastId,
+      name: topicName,
+      source: topicSource,
+      date: new Date().toISOString(),
+      timestamp: Math.floor(Date.now() / 1000),
+      audio_url: backup.audio_url,
+      transcript_url: backup.transcript_url,
+      thumbnail_url: backup.thumbnail_url,
+      banner_url: backup.banner_url,
+      description: `AI-generated podcast about: ${topicName}`,
+      duration: null, // filled by frontend from audio
+    });
+
+    cleanupTmp();
     backup.status = "complete";
     console.log("✅ Podcast pipeline complete!");
   }
