@@ -1,4 +1,4 @@
-import { generateAudio, transcribeAudio, generateMusic } from "../pollinations.js";
+import { generateAudio, transcribeAudio } from "../pollinations.js";
 
 const DEVELOPER_PROMPT =
   "You are a charismatic, confident podcast host narrating a story your listeners NEED to hear. " +
@@ -27,18 +27,4 @@ export async function generatePodcastSpeech(script, voice = "shimmer") {
   console.log("✅ Podcast transcript generated.");
 
   return { buffer, transcript };
-}
-
-/**
- * Generate background music via acestep.
- * @param {string} topicName
- * @param {number} duration - Duration in seconds
- * @returns {Buffer} MP3 audio buffer
- */
-export async function generatePodcastMusic(topicName, duration = 60) {
-  console.log("🎵 Generating background music (acestep)...");
-  const prompt = `Calm, upbeat, lo-fi podcast background music inspired by the theme: ${topicName}. Soft beats, ambient, no vocals.`;
-  const buffer = await generateMusic({ prompt, duration });
-  console.log("✅ Background music generated.");
-  return buffer;
 }

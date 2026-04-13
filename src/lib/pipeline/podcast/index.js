@@ -5,7 +5,7 @@ import path from "path";
 import { uploadBuffer, deleteFolder } from "../storage.js";
 import { fetchPodcastTopics, pickPodcastTopic } from "./topics.js";
 import { getLatestInfo, generatePodcastScript } from "./creator.js";
-import { generatePodcastSpeech, generatePodcastMusic } from "./audio.js";
+import { generatePodcastSpeech } from "./audio.js";
 import { generatePodcastThumbnail, generatePodcastBanner } from "./images.js";
 
 const BACKUP_FILE = path.resolve("tmp/podcastBackup.json");
@@ -91,20 +91,9 @@ export async function runPodcastPipeline(db) {
     const transcriptUrl = await uploadBuffer(Buffer.from(JSON.stringify(transcript)), folder, "transcript", "raw");
     backup.audio_url = audioUrl;
     backup.transcript_url = transcriptUrl;
-    backup.status = "speech_uploaded";
-    logBackup(backup);
-    console.log("✅ Speech + transcript uploaded.");
-  }
-
-  // Background music
-  if (backup.status === "speech_uploaded") {
-    console.log("🎵 Generating background music...");
-    const musicBuffer = await generatePodcastMusic(topicName, 60);
-    const musicUrl = await uploadBuffer(musicBuffer, folder, "music", "video");
-    backup.music_url = musicUrl;
     backup.status = "audio_uploaded";
     logBackup(backup);
-    console.log("✅ Background music uploaded.");
+    console.log("✅ Speech + transcript uploaded.");
   }
 
   // Images
