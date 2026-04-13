@@ -11,6 +11,7 @@
 
 import fs from "fs";
 import path from "path";
+import { execSync } from "child_process";
 import { runNewsPipeline, fixNewsItem } from "./news/index.js";
 import { runPodcastPipeline } from "./podcast/index.js";
 
@@ -122,24 +123,44 @@ async function main() {
 }
 
 /**
- * Creates a D1-compatible proxy for local testing.
- * In production, pass the real D1 binding from Cloudflare.
+ * Creates a D1-compatible wrapper that executes SQL against the real local D1
+ * via `wrangler d1 execute`. Works for both reads and writes.
  */
 function createDbProxy() {
+  function exec(sql) {
+    const escaped = sql.replace(/'/g, "'\\''");
+    const raw = execSync(
+      `npx wrangler d1 execute elixpochat --local --command='${escaped}' --json 2>/dev/null`,
+      { encoding: "utf-8", maxBuffer: 10 * 1024 * 1024 }
+    );
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed[0] || { results: [], success: true };
+    } catch {
+      return { results: [], success: true };
+    }
+  }
+
   return {
     prepare(sql) {
       return {
         bind(...params) {
+          // Replace ? placeholders with escaped values
+          let i = 0;
+          const bound = sql.replace(/\?/g, () => {
+            const val = params[i++];
+            if (val === null || val === undefined) return "NULL";
+            if (typeof val === "number") return String(val);
+            return "'" + String(val).replace(/'/g, "''") + "'";
+          });
           return {
             async run() {
-              console.log(`  [D1] ${sql}`);
-              console.log(`       params: ${JSON.stringify(params).slice(0, 200)}`);
+              exec(bound);
               return { success: true };
             },
             async first() {
-              console.log(`  [D1 QUERY] ${sql}`);
-              console.log(`       params: ${JSON.stringify(params)}`);
-              return null; // No data in local mock
+              const result = exec(bound);
+              return result.results?.[0] || null;
             },
           };
         },
