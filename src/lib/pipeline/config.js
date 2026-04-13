@@ -20,10 +20,12 @@ export const MODELS = {
   transcription: "whisper",
 };
 
-// ── Voices ──
+// ── Voices & Hosts ──
 export const NEWS_VOICES = ["shimmer", "ash", "shimmer", "ash", "shimmer", "ash", "shimmer"];
 export const PODCAST_VOICE_FEMALE = "shimmer";
 export const PODCAST_VOICE_MALE = "ash";
+export const PODCAST_HOST_FEMALE = "Liza";
+export const PODCAST_HOST_MALE = "Lix";
 
 // ── Limits ──
 export const MAX_NEWS_ITEMS = 7;
