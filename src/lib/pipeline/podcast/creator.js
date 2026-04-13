@@ -73,13 +73,15 @@ export async function generatePodcastScript(infoMarkdown, topicName) {
     `  [FEMALE] before ${PODCAST_HOST_FEMALE}'s lines\n` +
     `  [MALE] before ${PODCAST_HOST_MALE}'s lines\n` +
     "  [IMAGE:description] — exactly 5 of these, 15-20 word visual scene descriptions\n\n" +
-    "OPENING:\n" +
-    `- ONE host opens with a quick welcome to Elixpo Podcast and introduces the other BY NAME: e.g. "${PODCAST_HOST_FEMALE}: Hey everyone, welcome to the Elixpo Podcast! I'm ${PODCAST_HOST_FEMALE}, and joining me today is ${PODCAST_HOST_MALE}!"\n` +
-    `- The other host replies with ONE short line — "Hey ${PODCAST_HOST_FEMALE}!" or "Good to be here!" — then they IMMEDIATELY dive into the topic. That's it. No more greetings.\n` +
+    "OPENING (CRITICAL — follow this structure exactly):\n" +
+    `- The opening host says: "Hey everyone, welcome to the Elixpo Podcast! I'm [name]. Today we're diving into [TOPIC NAME] — [one sentence explaining what the topic is and why it matters]. And with me to break it all down is [other host's name]!"\n` +
+    `- The other host replies with just: "Hey! Yeah this is a big one, let's get into it." — ONE line, no repeating the welcome or the topic.\n` +
+    "- This gives the listener CONTEXT about what the episode is about before the conversation begins.\n" +
     "- Vary who opens — sometimes Lix, sometimes Liza.\n\n" +
     "CONVERSATION RULES:\n" +
-    "- This is a FAST-PACED conversation. They talk quickly, jump between points, interrupt each other playfully.\n" +
-    "- NEVER start a turn with a greeting or 'hey there' or 'welcome back'. After the opening, every turn starts mid-conversation — reacting, questioning, adding info.\n" +
+    "- FAST-PACED conversation. They talk quickly, jump between points, build on each other.\n" +
+    "- After the opening, NEVER greet again. No 'hey there', no 'welcome back', no 'okay [name]' as a greeting. Start every turn by reacting to what the other just said or adding new info.\n" +
+    "- Do NOT use the other host's name as a sentence opener repeatedly. Use names sparingly and naturally, not at the start of every turn.\n" +
     "- Each turn is 3-5 short sentences MAX. No monologues. Quick back and forth.\n" +
     `- They call each other by name naturally: '${PODCAST_HOST_MALE}, did you see...' or 'Okay ${PODCAST_HOST_FEMALE}, but here's the thing...'\n` +
     "- NO repeated information. If one host explains something, the other NEVER restates it. They react, challenge, add a new angle, or ask a follow-up.\n" +
