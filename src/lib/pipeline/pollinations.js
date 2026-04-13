@@ -116,14 +116,24 @@ function splitWavBuffer(wavBuffer, maxSeconds = 120) {
 }
 
 /**
- * Transcribe audio via Pollinations whisper, chunking if needed.
- * Saves audio to tmp/ first, splits into <=2min chunks, merges segments.
- * @param {Buffer} audioBuffer - Raw WAV audio bytes
+ * Check if a buffer is a WAV file by looking for the RIFF header.
+ */
+function isWav(buffer) {
+  return buffer.length > 44 &&
+    buffer[0] === 0x52 && buffer[1] === 0x49 &&
+    buffer[2] === 0x46 && buffer[3] === 0x46; // "RIFF"
+}
+
+/**
+ * Transcribe audio via Pollinations whisper, chunking WAV if needed.
+ * MP3 and other formats are sent as-is (already compressed/small).
+ * @param {Buffer} audioBuffer - Audio bytes (WAV or MP3)
  * @param {string} filename - Filename for identification
  * @returns {{ text: string, segments: Array<{ start: number, end: number, text: string }> }}
  */
 export async function transcribeAudio(audioBuffer, filename = "audio.wav") {
-  const chunks = splitWavBuffer(audioBuffer, 120);
+  // Only chunk raw WAV — MP3 is already small enough
+  const chunks = isWav(audioBuffer) ? splitWavBuffer(audioBuffer, 120) : [{ buffer: audioBuffer, offsetSeconds: 0 }];
 
   let allText = "";
   const allSegments = [];

@@ -34,7 +34,7 @@ export async function generateVoiceover(script, newsIndex, voice = "shimmer") {
 
   // Transcribe from the saved buffer (chunked internally)
   console.log(`📝 Transcribing audio for topic ${newsIndex}...`);
-  const transcript = await transcribeAudio(buffer, `news${newsIndex}.wav`);
+  const transcript = await transcribeAudio(buffer, `news${newsIndex}.mp3`);
   console.log(`✅ Transcript: ${transcript.segments?.length || 0} segments`);
 
   return { buffer, transcript };

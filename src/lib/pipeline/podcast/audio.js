@@ -37,7 +37,7 @@ export async function generatePodcastSpeech(script, voice = "shimmer") {
 
   // Transcribe (chunked internally if needed)
   console.log("📝 Transcribing podcast audio...");
-  const transcript = await transcribeAudio(buffer, "podcast.wav");
+  const transcript = await transcribeAudio(buffer, "podcast.mp3");
   console.log(`✅ Transcript: ${transcript.segments?.length || 0} segments`);
 
   return { buffer, transcript };
