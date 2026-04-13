@@ -16,6 +16,7 @@ import {
 } from "./images.js";
 
 const BACKUP_FILE = path.resolve("tmp/newsBackup.json");
+const CLOUDINARY_ROOT = "elixpochat/news";
 
 function ensureTmp() {
   const dir = path.resolve("tmp");
@@ -117,7 +118,7 @@ export async function runNewsPipeline(db) {
       try {
         console.log(`🎙️ Using voice: ${voice} for topic ${index}`);
         const audioBuffer = await safeRetry(() => generateVoiceover(item.script, index, voice));
-        const audioUrl = await uploadBuffer(audioBuffer, `news/${overallId}/${newsId}`, `news${index}`, "video");
+        const audioUrl = await uploadBuffer(audioBuffer, `${CLOUDINARY_ROOT}/${overallId}/${newsId}`, `news${index}`, "video");
         item.audio_url = audioUrl;
         item.status = "audio_uploaded";
         item.error = null;
@@ -138,7 +139,7 @@ export async function runNewsPipeline(db) {
       try {
         const prompt = await generateVisualPrompt(item.topic);
         const imgBuffer = await safeRetry(() => generateBannerImage(prompt));
-        const imageUrl = await uploadBuffer(imgBuffer, `news/${overallId}/${newsId}`, "newsBackground");
+        const imageUrl = await uploadBuffer(imgBuffer, `${CLOUDINARY_ROOT}/${overallId}/${newsId}`, "newsBackground");
         item.image_url = imageUrl;
         item.status = "complete";
         item.error = null;
@@ -170,7 +171,7 @@ export async function runNewsPipeline(db) {
 
     const thumbPrompt = await createCombinedVisualPrompt(completedTopics);
     const thumbBuffer = await generateThumbnailImage(thumbPrompt);
-    const thumbUrl = await uploadBuffer(thumbBuffer, `news/${overallId}`, "newsThumbnail");
+    const thumbUrl = await uploadBuffer(thumbBuffer, `${CLOUDINARY_ROOT}/${overallId}`, "newsThumbnail");
 
     const summaryText = await createCombinedNewsSummary(completedTopics);
     const dbItems = items.map((it) => ({
@@ -184,7 +185,7 @@ export async function runNewsPipeline(db) {
     if (prevStats) {
       const prev = JSON.parse(prevStats.data);
       if (prev.latestNewsId && prev.latestNewsId !== overallId) {
-        await deleteFolder(`news/${prev.latestNewsId}`);
+        await deleteFolder(`${CLOUDINARY_ROOT}/${prev.latestNewsId}`);
       }
     }
     const statsData = JSON.stringify({
