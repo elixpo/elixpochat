@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import CloseButton from "@/components/CloseButton";
-import SourcePill from "@/components/SourcePill";
+import Image from "next/image";
+import Link from "next/link";
 
 interface TimelineEntry {
   type: "male" | "female" | "image";
@@ -22,94 +22,96 @@ export default function PodcastPage() {
   const [bannerUrl, setBannerUrl] = useState("");
   const [thumbnailUrl, setThumbnailUrl] = useState("");
   const [sourceLink, setSourceLink] = useState("");
+  const [sourceDomain, setSourceDomain] = useState("");
   const [gradientColor, setGradientColor] = useState("#1a1a2e");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [speed, setSpeed] = useState(1);
   const [loaded, setLoaded] = useState(false);
+  const [audioError, setAudioError] = useState(false);
 
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [carouselImages, setCarouselImages] = useState<CarouselImage[]>([]);
-  const [activeSubtitle, setActiveSubtitle] = useState("");
+  const [activeIdx, setActiveIdx] = useState(-1);
   const [activeSpeaker, setActiveSpeaker] = useState<"male" | "female" | "">("");
   const [activeCarouselUrl, setActiveCarouselUrl] = useState("");
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const seekBarRef = useRef<HTMLDivElement>(null);
-  const subtitleRef = useRef<HTMLDivElement>(null);
+  const subtitleContainerRef = useRef<HTMLDivElement>(null);
   const speeds = [1, 1.5, 2];
 
   useEffect(() => {
-    // Fetch podcast data
     fetch("/api/podcast")
       .then((r) => r.json())
       .then((data) => {
         if (data.error) return;
         setPodcastName(data.podcast_name);
-        setBannerUrl(data.podcast_banner_url);
+        setBannerUrl(data.podcast_banner_url || "");
         setThumbnailUrl(data.podcast_thumbnail_url || "");
-        setSourceLink(data.topic_source);
+        setSourceLink(data.topic_source || "");
+        try {
+          setSourceDomain(new URL(data.topic_source).hostname.replace(/^www\./, ""));
+        } catch { setSourceDomain(""); }
 
-        audioRef.current = new Audio(data.podcast_audio_url);
-        audioRef.current.preload = "metadata";
-        audioRef.current.addEventListener("loadedmetadata", () => setDuration(audioRef.current!.duration));
-        audioRef.current.addEventListener("timeupdate", () => setCurrentTime(audioRef.current!.currentTime));
-        audioRef.current.addEventListener("play", () => setIsPlaying(true));
-        audioRef.current.addEventListener("pause", () => setIsPlaying(false));
-        audioRef.current.addEventListener("ended", () => setIsPlaying(false));
+        if (data.podcast_audio_url) {
+          const audio = new Audio(data.podcast_audio_url);
+          audio.preload = "metadata";
+          audio.addEventListener("loadedmetadata", () => setDuration(audio.duration));
+          audio.addEventListener("timeupdate", () => setCurrentTime(audio.currentTime));
+          audio.addEventListener("play", () => setIsPlaying(true));
+          audio.addEventListener("pause", () => setIsPlaying(false));
+          audio.addEventListener("ended", () => setIsPlaying(false));
+          audio.addEventListener("error", () => setAudioError(true));
+          audioRef.current = audio;
+        } else {
+          setAudioError(true);
+        }
         setLoaded(true);
       })
       .catch(console.error);
 
-    // Fetch podcast details (has gradient, timeline, carousel)
     fetch("/api/podcast-details")
       .then((r) => r.json())
       .then((details) => {
         if (details.gradientColor) setGradientColor(details.gradientColor);
         if (details.carouselImages) setCarouselImages(details.carouselImages);
-
-        // Fetch timeline from URL
         if (details.timelineUrl) {
-          fetch(details.timelineUrl)
-            .then((r) => r.json())
-            .then((t) => setTimeline(t))
-            .catch(() => {});
+          fetch(details.timelineUrl).then((r) => r.json()).then(setTimeline).catch(() => {});
         }
       })
       .catch(() => {});
 
-    return () => {
-      if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; }
-    };
+    return () => { if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ""; } };
   }, []);
 
-  // Sync timeline with current time
+  // Sync timeline
   const updateTimeline = useCallback(() => {
     if (!timeline.length) return;
     const t = currentTime;
-
-    // Find active speech segment
-    const speechEntry = timeline.find(
+    const idx = timeline.findIndex(
       (e) => (e.type === "male" || e.type === "female") && t >= e.start && t < e.end
     );
-    if (speechEntry) {
-      setActiveSubtitle(speechEntry.content);
-      setActiveSpeaker(speechEntry.type as "male" | "female");
+    if (idx !== -1) {
+      setActiveIdx(idx);
+      setActiveSpeaker(timeline[idx].type as "male" | "female");
     }
-
-    // Find active carousel image (show the most recent one that has passed)
-    const passedImages = carouselImages.filter((img) => t >= img.time);
-    if (passedImages.length > 0) {
-      const latest = passedImages[passedImages.length - 1];
-      setActiveCarouselUrl(latest.url);
-    }
+    const passed = carouselImages.filter((img) => t >= img.time);
+    if (passed.length) setActiveCarouselUrl(passed[passed.length - 1].url);
   }, [currentTime, timeline, carouselImages]);
 
   useEffect(() => { updateTimeline(); }, [updateTimeline]);
 
+  // Auto-scroll subtitles
+  useEffect(() => {
+    if (activeIdx < 0 || !subtitleContainerRef.current) return;
+    const el = subtitleContainerRef.current.children[activeIdx] as HTMLElement;
+    if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [activeIdx]);
+
   const togglePlay = () => {
-    if (!audioRef.current) return;
+    if (!audioRef.current || audioError) return;
     if (audioRef.current.paused) audioRef.current.play(); else audioRef.current.pause();
   };
 
@@ -130,117 +132,170 @@ export default function PodcastPage() {
     audioRef.current.currentTime = (Math.max(0, Math.min(e.clientX - rect.left, rect.width)) / rect.width) * duration;
   };
 
-  const formatTime = (sec: number) => {
+  const fmt = (sec: number) => {
     sec = Math.max(0, Math.floor(sec));
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
+    return `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, "0")}`;
   };
 
-  const percent = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
+  const speechEntries = timeline.filter((e) => e.type === "male" || e.type === "female");
+  const faviconUrl = sourceDomain ? `https://www.google.com/s2/favicons?domain=${sourceDomain}&sz=64` : "";
 
   return (
-    <section className="relative h-screen w-screen overflow-hidden flex flex-col">
-      <CloseButton />
+    <section className="relative h-screen w-screen overflow-hidden flex flex-col bg-black">
+      {/* Back button */}
+      <Link href="/" className="fixed top-5 left-5 z-50 w-10 h-10 rounded-full bg-black/40 backdrop-blur-md flex items-center justify-center hover:bg-black/60 transition-colors">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
+      </Link>
 
-      {/* Gradient background from pipeline-extracted color */}
-      <div className="absolute inset-0 transition-colors duration-1000" style={{ background: `linear-gradient(160deg, ${gradientColor}, #0a0a0a)` }} />
-
-      {/* Banner with gradient overlay */}
+      {/* ═══ BACKGROUND ═══ */}
+      {/* Banner full bleed */}
       {bannerUrl && (
-        <div className="absolute inset-0">
-          <div className="absolute inset-0 bg-cover bg-center transition-opacity duration-1000 opacity-30" style={{ backgroundImage: `url(${bannerUrl})` }} />
-          <div className="absolute inset-0" style={{ background: `linear-gradient(to bottom, transparent 30%, ${gradientColor})` }} />
+        <div className="absolute inset-0 z-0">
+          <div className="absolute inset-0 bg-cover bg-center scale-110" style={{ backgroundImage: `url(${bannerUrl})`, filter: "blur(30px) brightness(0.5)" }} />
         </div>
       )}
+      {/* Gradient overlay: transparent top → gradientColor bottom */}
+      <div className="absolute inset-0 z-[1]" style={{ background: `linear-gradient(to bottom, transparent 0%, ${gradientColor}dd 50%, ${gradientColor} 100%)` }} />
 
-      {/* Main content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6">
-
-        {/* Carousel / Thumbnail area */}
-        <div className="relative w-[320px] h-[180px] max-sm:w-[260px] max-sm:h-[146px] rounded-2xl overflow-hidden shadow-2xl shadow-black/40 border border-white/10 mb-6 transition-all duration-700">
-          {activeCarouselUrl ? (
+      {/* ═══ MAIN CONTENT ═══ */}
+      <div className="relative z-10 flex-1 flex flex-col overflow-hidden">
+        {/* Top: Banner image + info */}
+        <div className="flex-shrink-0 pt-16 pb-4 px-6 flex flex-col items-center">
+          {/* Carousel / Banner display */}
+          <div className="relative w-full max-w-lg h-[200px] max-sm:h-[150px] rounded-2xl overflow-hidden shadow-2xl shadow-black/60 mb-5">
             <div
-              className="absolute inset-0 bg-cover bg-center transition-all duration-700"
-              style={{ backgroundImage: `url(${activeCarouselUrl})` }}
+              className="absolute inset-0 bg-cover bg-center transition-all duration-1000"
+              style={{ backgroundImage: `url(${activeCarouselUrl || bannerUrl || thumbnailUrl || ""})` }}
             />
-          ) : (thumbnailUrl || bannerUrl) ? (
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url(${thumbnailUrl || bannerUrl})`, opacity: loaded ? 1 : 0 }}
-            />
-          ) : null}
-        </div>
+            {/* Gradient fade at bottom of image */}
+            <div className="absolute inset-x-0 bottom-0 h-1/2" style={{ background: `linear-gradient(to bottom, transparent, ${gradientColor}cc)` }} />
 
-        {/* Podcast name */}
-        <p className="text-xl font-bold text-center text-white font-[family-name:var(--font-parkinsans)] max-w-lg mb-1 max-sm:text-base" style={{ opacity: loaded ? 1 : 0 }}>
-          {podcastName}
-        </p>
-
-        {/* Speaker indicator */}
-        {activeSpeaker && isPlaying && (
-          <div className="flex items-center gap-2 mb-3">
-            <div className={`w-2 h-2 rounded-full ${activeSpeaker === "female" ? "bg-pink-400" : "bg-blue-400"}`} />
-            <span className="text-xs text-white/60 font-medium uppercase tracking-wider">
-              {activeSpeaker === "female" ? "Liza" : "Lix"}
-            </span>
+            {/* Carousel dots */}
+            {carouselImages.length > 0 && (
+              <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {carouselImages.map((img, i) => (
+                  <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all ${activeCarouselUrl === img.url ? "bg-white w-4" : "bg-white/40"}`} />
+                ))}
+              </div>
+            )}
           </div>
-        )}
 
-        {/* Live subtitle */}
-        <div ref={subtitleRef} className="min-h-[60px] max-w-2xl px-4 mb-4 flex items-center justify-center">
-          <p className="text-sm text-center text-white/70 leading-relaxed transition-opacity duration-300" style={{ opacity: activeSubtitle && isPlaying ? 1 : 0.3 }}>
-            {activeSubtitle || (loaded ? "Press play to start" : "Loading...")}
+          {/* Podcast title */}
+          <h1 className="text-2xl max-sm:text-lg font-extrabold text-white text-center font-[family-name:var(--font-parkinsans)] leading-tight max-w-lg mb-2">
+            {podcastName || "Loading..."}
+          </h1>
+
+          {/* Source info */}
+          {sourceDomain && (
+            <a href={sourceLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 mb-1 group">
+              {faviconUrl && <Image src={faviconUrl} alt="" width={16} height={16} className="rounded-sm opacity-60 group-hover:opacity-100 transition-opacity" />}
+              <span className="text-xs text-white/40 group-hover:text-white/70 transition-colors uppercase tracking-wider font-medium">{sourceDomain}</span>
+            </a>
+          )}
+
+          {/* Description */}
+          <p className="text-xs text-white/30 text-center max-w-sm italic">
+            AI-generated podcast by Elixpo Copilot
           </p>
+
+          {/* Speaker indicator */}
+          {activeSpeaker && isPlaying && (
+            <div className="mt-3 flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 backdrop-blur-sm">
+              <div className={`w-2 h-2 rounded-full animate-pulse ${activeSpeaker === "female" ? "bg-pink-400" : "bg-blue-400"}`} />
+              <span className="text-xs text-white/60 font-semibold tracking-wider uppercase">
+                {activeSpeaker === "female" ? "Liza" : "Lix"} speaking
+              </span>
+            </div>
+          )}
         </div>
 
-        {/* Source */}
-        {sourceLink && (
-          <div className="mb-4">
-            <SourcePill sourceLink={sourceLink} />
+        {/* Middle: Scrollable subtitles (Spotify-style) */}
+        <div className="flex-1 overflow-hidden relative px-6">
+          {/* Fade masks top/bottom */}
+          <div className="absolute inset-x-0 top-0 h-12 z-10 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${gradientColor}, transparent)` }} />
+          <div className="absolute inset-x-0 bottom-0 h-12 z-10 pointer-events-none" style={{ background: `linear-gradient(to top, ${gradientColor}, transparent)` }} />
+
+          <div ref={subtitleContainerRef} className="h-full overflow-y-auto scroll-smooth px-2 py-10" style={{ scrollbarWidth: "none" }}>
+            {speechEntries.length > 0 ? speechEntries.map((entry, i) => {
+              const isActive = timeline.indexOf(entry) === activeIdx;
+              return (
+                <div
+                  key={i}
+                  className="py-3 cursor-pointer transition-all duration-500"
+                  onClick={() => {
+                    if (audioRef.current) audioRef.current.currentTime = entry.start;
+                  }}
+                >
+                  {/* Speaker tag */}
+                  <span className={`text-[10px] uppercase tracking-widest font-bold mb-1 block transition-colors duration-300 ${
+                    isActive
+                      ? entry.type === "female" ? "text-pink-400" : "text-blue-400"
+                      : "text-white/15"
+                  }`}>
+                    {entry.type === "female" ? "Liza" : "Lix"}
+                  </span>
+                  <p className={`text-base leading-relaxed transition-all duration-500 ${
+                    isActive ? "text-white font-medium scale-[1.01]" : "text-white/20"
+                  }`}>
+                    {entry.content}
+                  </p>
+                </div>
+              );
+            }) : (
+              <div className="h-full flex items-center justify-center">
+                <p className="text-white/20 text-sm italic">{loaded ? "Press play to start listening" : "Loading podcast..."}</p>
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Carousel dots */}
-      {carouselImages.length > 0 && (
-        <div className="relative z-10 flex justify-center gap-1.5 mb-3">
-          {carouselImages.map((img, i) => {
-            const isActive = activeCarouselUrl === img.url;
-            return <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${isActive ? "bg-white scale-125" : "bg-white/30"}`} />;
-          })}
-        </div>
-      )}
-
-      {/* Playback controls */}
-      <div className="relative z-10 px-6 pb-8 max-sm:pb-6">
-        <div className="max-w-md mx-auto">
+      {/* ═══ PLAYER BAR ═══ */}
+      <div className="relative z-10 flex-shrink-0 px-6 pb-6 pt-2" style={{ background: `linear-gradient(to top, ${gradientColor}, transparent)` }}>
+        <div className="max-w-lg mx-auto">
           {/* Seek bar */}
-          <div className="flex items-center gap-3 mb-4">
-            <span className="text-xs text-white/50 font-mono w-10 text-right">{formatTime(currentTime)}</span>
-            <div ref={seekBarRef} onClick={seekTo} className="flex-1 h-1.5 rounded-full cursor-pointer relative" style={{ background: "rgba(255,255,255,0.15)" }}>
-              <div className="absolute inset-y-0 left-0 rounded-full bg-white" style={{ width: `${percent}%` }} />
-              <div className="absolute w-3 h-3 rounded-full bg-white -top-[3px] shadow" style={{ left: `calc(${percent}% - 6px)` }} />
+          <div className="flex items-center gap-3 mb-3">
+            <span className="text-[11px] text-white/40 font-mono w-8 text-right">{fmt(currentTime)}</span>
+            <div
+              ref={seekBarRef}
+              onClick={seekTo}
+              className="flex-1 h-[6px] rounded-full cursor-pointer relative group"
+              style={{ background: "rgba(255,255,255,0.1)" }}
+            >
+              <div className="absolute inset-y-0 left-0 rounded-full transition-all" style={{ width: `${pct}%`, background: "white" }} />
+              <div className="absolute w-4 h-4 rounded-full bg-white -top-[5px] shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" style={{ left: `calc(${pct}% - 8px)` }} />
             </div>
-            <span className="text-xs text-white/50 font-mono w-10">{formatTime(duration)}</span>
+            <span className="text-[11px] text-white/40 font-mono w-8">{fmt(duration)}</span>
           </div>
 
           {/* Controls */}
-          <div className="flex items-center justify-center gap-8">
-            <button onClick={cycleSpeed} className="text-xs text-white/60 font-bold px-2 py-1 rounded-md hover:bg-white/10 transition-colors cursor-pointer">{speed}x</button>
-            <button onClick={() => skip(-10)} className="text-white/60 hover:text-white transition-colors cursor-pointer">
-              <svg viewBox="0 0 24 24" className="w-6 h-6"><path d="M2.74999 2.5C2.33578 2.5 2 2.83579 2 3.25V8.75C2 9.16421 2.33578 9.5 2.74999 9.5H8.25011C8.66432 9.5 9.00011 9.16421 9.00011 8.75C9.00011 8.33579 8.66432 8 8.25011 8H4.34273C5.40077 6.60212 6.77033 5.4648 8.47169 4.93832C10.5381 4.29885 12.7232 4.35354 14.7384 5.10317C16.7673 5.85787 18.6479 7.38847 19.5922 9.11081C19.7914 9.47401 20.2473 9.607 20.6104 9.40785C20.9736 9.20871 21.1066 8.75284 20.9075 8.38964C19.7655 6.30687 17.5773 4.55877 15.2614 3.69728C12.9318 2.83072 10.4069 2.7693 8.02826 3.50536C6.14955 4.08673 4.65345 5.26153 3.49999 6.64949V3.25C3.49999 2.83579 3.1642 2.5 2.74999 2.5Z" fill="currentColor" /></svg>
+          <div className="flex items-center justify-center gap-6">
+            <button onClick={cycleSpeed} className="w-10 h-8 rounded-lg text-[11px] text-white/50 font-bold hover:bg-white/10 transition-colors cursor-pointer flex items-center justify-center">{speed}x</button>
+
+            <button onClick={() => skip(-10)} className="text-white/50 hover:text-white transition-colors cursor-pointer p-2">
+              <svg viewBox="0 0 24 24" className="w-5 h-5"><path d="M2.74999 2.5C2.33578 2.5 2 2.83579 2 3.25V8.75C2 9.16421 2.33578 9.5 2.74999 9.5H8.25011C8.66432 9.5 9.00011 9.16421 9.00011 8.75C9.00011 8.33579 8.66432 8 8.25011 8H4.34273C5.40077 6.60212 6.77033 5.4648 8.47169 4.93832C10.5381 4.29885 12.7232 4.35354 14.7384 5.10317C16.7673 5.85787 18.6479 7.38847 19.5922 9.11081C19.7914 9.47401 20.2473 9.607 20.6104 9.40785C20.9736 9.20871 21.1066 8.75284 20.9075 8.38964C19.7655 6.30687 17.5773 4.55877 15.2614 3.69728C12.9318 2.83072 10.4069 2.7693 8.02826 3.50536C6.14955 4.08673 4.65345 5.26153 3.49999 6.64949V3.25C3.49999 2.83579 3.1642 2.5 2.74999 2.5Z" fill="currentColor" /></svg>
             </button>
-            <button onClick={togglePlay} className="w-14 h-14 rounded-full bg-white flex items-center justify-center hover:scale-105 transition-transform cursor-pointer">
-              {isPlaying ? (
-                <svg viewBox="0 0 32 32" className="w-6 h-6"><path d="M7.25 29C5.45507 29 4 27.5449 4 25.75V7.25C4 5.45507 5.45507 4 7.25 4H10.75C12.5449 4 14 5.45507 14 7.25V25.75C14 27.5449 12.5449 29 10.75 29H7.25ZM21.25 29C19.4551 29 18 27.5449 18 25.75V7.25C18 5.45507 19.4551 4 21.25 4H24.75C26.5449 4 28 5.45507 28 7.25V25.75C28 27.5449 26.5449 29 24.75 29H21.25Z" fill="#0a0a0a" /></svg>
+
+            <button
+              onClick={togglePlay}
+              disabled={audioError}
+              className={`w-16 h-16 rounded-full flex items-center justify-center transition-all cursor-pointer ${audioError ? "bg-white/20 cursor-not-allowed" : "bg-white hover:scale-105 active:scale-95 shadow-xl shadow-white/10"}`}
+            >
+              {audioError ? (
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#666" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><line x1="15" y1="9" x2="9" y2="15" /><line x1="9" y1="9" x2="15" y2="15" /></svg>
+              ) : isPlaying ? (
+                <svg viewBox="0 0 32 32" className="w-7 h-7"><path d="M7.25 29C5.45507 29 4 27.5449 4 25.75V7.25C4 5.45507 5.45507 4 7.25 4H10.75C12.5449 4 14 5.45507 14 7.25V25.75C14 27.5449 12.5449 29 10.75 29H7.25ZM21.25 29C19.4551 29 18 27.5449 18 25.75V7.25C18 5.45507 19.4551 4 21.25 4H24.75C26.5449 4 28 5.45507 28 7.25V25.75C28 27.5449 26.5449 29 24.75 29H21.25Z" fill="#0a0a0a" /></svg>
               ) : (
-                <svg viewBox="0 0 32 32" className="w-6 h-6 ml-1"><path d="M12.2246 27.5373C9.89137 28.8585 7 27.173 7 24.4917V7.50044C7 4.81864 9.89234 3.1332 12.2256 4.45537L27.2233 12.9542C29.5897 14.2951 29.5891 17.7047 27.2223 19.0449L12.2246 27.5373Z" fill="#0a0a0a" /></svg>
+                <svg viewBox="0 0 32 32" className="w-7 h-7 ml-1"><path d="M12.2246 27.5373C9.89137 28.8585 7 27.173 7 24.4917V7.50044C7 4.81864 9.89234 3.1332 12.2256 4.45537L27.2233 12.9542C29.5897 14.2951 29.5891 17.7047 27.2223 19.0449L12.2246 27.5373Z" fill="#0a0a0a" /></svg>
               )}
             </button>
-            <button onClick={() => skip(10)} className="text-white/60 hover:text-white transition-colors cursor-pointer">
-              <svg viewBox="0 0 24 24" className="w-6 h-6"><path d="M21.25 2.5C21.6642 2.5 22 2.83579 22 3.25V8.75C22 9.16421 21.6642 9.5 21.25 9.5H15.7499C15.3357 9.5 14.9999 9.16421 14.9999 8.75C14.9999 8.33578 15.3357 8 15.7499 8H19.6573C18.5992 6.60212 17.2297 5.4648 15.5283 4.93832C13.4619 4.29885 11.2768 4.35354 9.26156 5.10317C7.23271 5.85787 5.35214 7.38846 4.40776 9.11081C4.20861 9.47401 3.75274 9.607 3.38955 9.40785C3.02635 9.20871 2.89336 8.75283 3.09251 8.38964C4.23451 6.30687 6.42268 4.55877 8.73861 3.69728C11.0682 2.83072 13.5931 2.7693 15.9717 3.50536C17.8504 4.08673 19.3465 5.26153 20.5 6.64949V3.25C20.5 2.83579 20.8358 2.5 21.25 2.5Z" fill="currentColor" /></svg>
+
+            <button onClick={() => skip(10)} className="text-white/50 hover:text-white transition-colors cursor-pointer p-2">
+              <svg viewBox="0 0 24 24" className="w-5 h-5"><path d="M21.25 2.5C21.6642 2.5 22 2.83579 22 3.25V8.75C22 9.16421 21.6642 9.5 21.25 9.5H15.7499C15.3357 9.5 14.9999 9.16421 14.9999 8.75C14.9999 8.33578 15.3357 8 15.7499 8H19.6573C18.5992 6.60212 17.2297 5.4648 15.5283 4.93832C13.4619 4.29885 11.2768 4.35354 9.26156 5.10317C7.23271 5.85787 5.35214 7.38846 4.40776 9.11081C4.20861 9.47401 3.75274 9.607 3.38955 9.40785C3.02635 9.20871 2.89336 8.75283 3.09251 8.38964C4.23451 6.30687 6.42268 4.55877 8.73861 3.69728C11.0682 2.83072 13.5931 2.7693 15.9717 3.50536C17.8504 4.08673 19.3465 5.26153 20.5 6.64949V3.25C20.5 2.83579 20.8358 2.5 21.25 2.5Z" fill="currentColor" /></svg>
             </button>
+
+            <div className="w-10" />
           </div>
         </div>
       </div>
