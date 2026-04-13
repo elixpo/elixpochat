@@ -32,9 +32,9 @@ export const CLOUDINARY_NEWS_ROOT = "elixpochat/news";
 export const CLOUDINARY_PODCAST_ROOT = "elixpochat/podcast";
 
 // ── TTS developer prompts ──
-export const PODCAST_TTS_PROMPT = "Narrate the full script word for word as an energetic, fast-paced podcast host with natural breathing, real emotion, pauses before reveals and after big moments — never say words like 'pause' or 'sigh' or any paralinguistic cues out loud, just perform them naturally through your voice, pacing, and breath.";
+export const PODCAST_TTS_PROMPT = "You're talking to a live audience, not reading a script — speak like a real person having a conversation, paraphrase freely, break long sentences into short punchy ones, react genuinely with excitement or curiosity, breathe audibly between thoughts, laugh or go 'huh' or 'wow' when something is surprising, speed up when you're excited and slow down for impact, keep sentences short and rhythmic like natural speech not written prose, absolutely no intro music or outro sound effects or any audio overlay at the start or end just your raw voice from the first word, never say the words 'pause' or 'sigh' or 'breath' out loud just do them naturally, you are an energetic engaging speaker who makes people lean in and listen.";
 
-export const NEWS_TTS_PROMPT = "Narrate the full script word for word as a sharp, energetic news host — fast-paced and confident with natural breaths between thoughts, genuine emotion matching the content, brief pauses after surprising facts — never say words like 'pause' or 'sigh' out loud, just let them come through naturally in your delivery.";
+export const NEWS_TTS_PROMPT = "You're a quick sharp news host delivering stories to real people — speak naturally not like you're reading, paraphrase the script to sound conversational, keep sentences short and direct, react to the content with genuine tone shifts like surprise or urgency, breathe between stories, no intro jingle or outro sound just start talking immediately, never say 'pause' or 'sigh' out loud just let your voice carry the emotion, be fast but clear, warm but punchy, like someone telling you breaking news over coffee.";
 
 // ── Filenames (tmp + cloudinary) ──
 export const FILES = {
