@@ -29,7 +29,7 @@ export default function PodcastPage() {
   const [speed, setSpeed] = useState(1);
   const [loaded, setLoaded] = useState(false);
   const [audioError, setAudioError] = useState(false);
-  const [showCaptions, setShowCaptions] = useState(false);
+  const [showCaptions, setShowCaptions] = useState(true);
 
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
   const [carouselImages, setCarouselImages] = useState<CarouselImage[]>([]);
@@ -153,26 +153,28 @@ export default function PodcastPage() {
           </div>
         )}
 
-        {/* Captions area */}
-        <div className={`transition-all duration-500 overflow-hidden ${showCaptions ? "h-[30vh] opacity-100" : "h-0 opacity-0"}`}>
-          <div className="relative h-full px-6">
-            <div className="absolute inset-x-0 top-0 h-8 z-10 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${gradientColor}, transparent)` }} />
-            <div className="absolute inset-x-0 bottom-0 h-8 z-10 pointer-events-none" style={{ background: `linear-gradient(to top, ${gradientColor}, transparent)` }} />
-            <div ref={subtitleContainerRef} className="h-full overflow-y-auto scroll-smooth px-2 py-8 max-w-lg mx-auto" style={{ scrollbarWidth: "none" }}>
-              {speechEntries.map((entry, i) => {
-                const isActive = timeline.indexOf(entry) === activeIdx;
-                return (
-                  <div key={i} className="py-2 cursor-pointer" onClick={() => { if (audioRef.current) audioRef.current.currentTime = entry.start; }}>
-                    <span className={`text-[9px] uppercase tracking-widest font-bold block transition-colors duration-300 ${
-                      isActive ? (entry.type === "female" ? "text-pink-400" : "text-blue-400") : "text-white/10"
-                    }`}>{entry.type === "female" ? "Liza" : "Lix"}</span>
-                    <p className={`text-sm leading-relaxed transition-all duration-400 ${isActive ? "text-white/90 font-medium" : "text-white/15"}`}>{entry.content}</p>
-                  </div>
-                );
-              })}
+        {/* Rolling subtitle — single line above player */}
+        {showCaptions && (() => {
+          const activeEntry = activeIdx >= 0 ? timeline[activeIdx] : null;
+          return (
+            <div className="flex-shrink-0 px-6 mb-2">
+              <div className="max-w-lg mx-auto text-center min-h-[48px] flex flex-col items-center justify-end">
+                {activeEntry && (activeEntry.type === "male" || activeEntry.type === "female") ? (
+                  <>
+                    <span className={`text-[9px] uppercase tracking-widest font-bold mb-1 ${activeEntry.type === "female" ? "text-pink-400/70" : "text-blue-400/70"}`}>
+                      {activeEntry.type === "female" ? "Liza" : "Lix"}
+                    </span>
+                    <p key={activeIdx} className="text-sm text-white/80 font-medium leading-snug animate-[fadeUp_0.3s_ease-out]">
+                      {activeEntry.content.length > 120 ? activeEntry.content.slice(0, 120) + "..." : activeEntry.content}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-xs text-white/20 italic">{loaded && !isPlaying ? "Press play" : ""}</p>
+                )}
+              </div>
             </div>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* ═══ PLAYER ═══ */}
         <div className="flex-shrink-0 px-4 pb-6 pt-3">
@@ -214,9 +216,9 @@ export default function PodcastPage() {
 
             {/* Controls */}
             <div className="flex items-center justify-center gap-6">
-              <button onClick={cycleSpeed} className="w-10 h-8 rounded-md text-xs text-white/40 font-bold hover:bg-white/10 hover:text-white/60 transition-all cursor-pointer flex items-center justify-center">{speed}x</button>
-              <button onClick={() => skip(-10)} className="text-white/40 hover:text-white/70 transition-colors cursor-pointer p-1.5">
-                <svg viewBox="0 0 24 24" className="w-6 h-6"><path d="M2.74999 2.5C2.33578 2.5 2 2.83579 2 3.25V8.75C2 9.16421 2.33578 9.5 2.74999 9.5H8.25011C8.66432 9.5 9.00011 9.16421 9.00011 8.75C9.00011 8.33579 8.66432 8 8.25011 8H4.34273C5.40077 6.60212 6.77033 5.4648 8.47169 4.93832C10.5381 4.29885 12.7232 4.35354 14.7384 5.10317C16.7673 5.85787 18.6479 7.38847 19.5922 9.11081C19.7914 9.47401 20.2473 9.607 20.6104 9.40785C20.9736 9.20871 21.1066 8.75284 20.9075 8.38964C19.7655 6.30687 17.5773 4.55877 15.2614 3.69728C12.9318 2.83072 10.4069 2.7693 8.02826 3.50536C6.14955 4.08673 4.65345 5.26153 3.49999 6.64949V3.25C3.49999 2.83579 3.1642 2.5 2.74999 2.5Z" fill="currentColor" /></svg>
+              <button onClick={cycleSpeed} className="min-w-[40px] h-8 px-2.5 rounded-full text-[11px] text-white/50 font-bold bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.08] transition-all cursor-pointer flex items-center justify-center">{speed}x</button>
+              <button onClick={() => skip(-10)} className="text-white/40 hover:text-white/70 active:scale-90 transition-all cursor-pointer p-2 rounded-full hover:bg-white/[0.06]">
+                <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 4v6h6" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
               </button>
               <button onClick={togglePlay} disabled={audioError} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-lg ${audioError ? "bg-white/10" : "bg-white hover:scale-105 active:scale-95 shadow-white/10"}`}>
                 {audioError ? (
@@ -227,8 +229,8 @@ export default function PodcastPage() {
                   <svg viewBox="0 0 32 32" className="w-6 h-6 ml-0.5"><path d="M12.2246 27.5373C9.89137 28.8585 7 27.173 7 24.4917V7.50044C7 4.81864 9.89234 3.1332 12.2256 4.45537L27.2233 12.9542C29.5897 14.2951 29.5891 17.7047 27.2223 19.0449L12.2246 27.5373Z" fill="#111" /></svg>
                 )}
               </button>
-              <button onClick={() => skip(10)} className="text-white/40 hover:text-white/70 transition-colors cursor-pointer p-1.5">
-                <svg viewBox="0 0 24 24" className="w-6 h-6"><path d="M21.25 2.5C21.6642 2.5 22 2.83579 22 3.25V8.75C22 9.16421 21.6642 9.5 21.25 9.5H15.7499C15.3357 9.5 14.9999 9.16421 14.9999 8.75C14.9999 8.33578 15.3357 8 15.7499 8H19.6573C18.5992 6.60212 17.2297 5.4648 15.5283 4.93832C13.4619 4.29885 11.2768 4.35354 9.26156 5.10317C7.23271 5.85787 5.35214 7.38846 4.40776 9.11081C4.20861 9.47401 3.75274 9.607 3.38955 9.40785C3.02635 9.20871 2.89336 8.75283 3.09251 8.38964C4.23451 6.30687 6.42268 4.55877 8.73861 3.69728C11.0682 2.83072 13.5931 2.7693 15.9717 3.50536C17.8504 4.08673 19.3465 5.26153 20.5 6.64949V3.25C20.5 2.83579 20.8358 2.5 21.25 2.5Z" fill="currentColor" /></svg>
+              <button onClick={() => skip(10)} className="text-white/40 hover:text-white/70 active:scale-90 transition-all cursor-pointer p-2 rounded-full hover:bg-white/[0.06]">
+                <svg viewBox="0 0 24 24" className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M23 4v6h-6" /><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" /></svg>
               </button>
               <div className="w-10" />
             </div>
