@@ -4,7 +4,7 @@ import path from "path";
 
 import { MAX_NEWS_ITEMS, NEWS_VOICES } from "../config.js";
 import { uploadBuffer } from "../storage.js";
-import { compressImage } from "../compress.js";
+import { compressThumbnail, compressBanner, extractDominantColor } from "../compress.js";
 import { fetchTrendingTopics } from "./topics.js";
 import { generateNewsAnalysis, generateNewsScript } from "./analysis.js";
 import { generateVoiceover } from "./voiceover.js";
@@ -144,11 +144,15 @@ export async function runNewsPipeline(db) {
       try {
         const prompt = await generateVisualPrompt(item.topic);
         const rawImg = await safeRetry(() => generateBannerImage(prompt));
-        const imgBuffer = compressImage(rawImg, path.join(itemDir, "banner"));
+        const imgBuffer = compressBanner(rawImg, path.join(itemDir, "banner"));
         fs.writeFileSync(path.join(itemDir, "banner.jpg"), imgBuffer);
+
+        // Extract gradient color from banner
+        const gradientColor = extractDominantColor(imgBuffer, path.join(itemDir, "banner_color"));
 
         const imageUrl = await uploadBuffer(imgBuffer, `${CLOUDINARY_ROOT}/item_${index}`, "banner");
         item.image_url = imageUrl;
+        item.gradient_color = gradientColor;
         item.status = "image_uploaded";
         item.error = null;
         items[index] = item;
@@ -224,7 +228,7 @@ export async function runNewsPipeline(db) {
 
     const thumbPrompt = await createCombinedVisualPrompt(completedTopics);
     const rawThumb = await generateThumbnailImage(thumbPrompt);
-    const thumbBuffer = compressImage(rawThumb, path.join(TMP_ROOT, "thumbnail"));
+    const thumbBuffer = compressThumbnail(rawThumb, path.join(TMP_ROOT, "thumbnail"));
     fs.writeFileSync(path.join(TMP_ROOT, "thumbnail.jpg"), thumbBuffer);
     const thumbUrl = await uploadBuffer(thumbBuffer, CLOUDINARY_ROOT, "thumbnail");
 
@@ -237,6 +241,7 @@ export async function runNewsPipeline(db) {
       category: it.category,
       image_url: it.image_url,
       source_link: it.source_link,
+      gradient_color: it.gradient_color,
     }));
 
     await db.prepare("INSERT OR REPLACE INTO news (id, items) VALUES (?, ?)").bind(overallId, JSON.stringify(dbItems)).run();

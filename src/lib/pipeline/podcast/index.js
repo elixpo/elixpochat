@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 import { uploadBuffer } from "../storage.js";
-import { compressImage } from "../compress.js";
+import { compressThumbnail, compressBanner, extractDominantColor } from "../compress.js";
 import { fetchPodcastTopics, pickPodcastTopic } from "./topics.js";
 import { getLatestInfo, generatePodcastScript } from "./creator.js";
 import { generatePodcastSpeech } from "./audio.js";
@@ -98,17 +98,21 @@ export async function runPodcastPipeline(db) {
     console.log("🎨 Generating images...");
 
     const rawThumb = await generatePodcastThumbnail(topicName);
-    const thumbBuffer = compressImage(rawThumb, path.join(TMP_ROOT, "thumbnail"));
+    const thumbBuffer = compressThumbnail(rawThumb, path.join(TMP_ROOT, "thumbnail"));
     fs.writeFileSync(path.join(TMP_ROOT, "thumbnail.jpg"), thumbBuffer);
     const thumbUrl = await uploadBuffer(thumbBuffer, CLOUDINARY_ROOT, "thumbnail");
 
     const rawBanner = await generatePodcastBanner(topicName);
-    const bannerBuffer = compressImage(rawBanner, path.join(TMP_ROOT, "banner"));
+    const bannerBuffer = compressBanner(rawBanner, path.join(TMP_ROOT, "banner"));
     fs.writeFileSync(path.join(TMP_ROOT, "banner.jpg"), bannerBuffer);
     const bannerUrl = await uploadBuffer(bannerBuffer, CLOUDINARY_ROOT, "banner");
 
+    // Extract gradient color from banner
+    const gradientColor = extractDominantColor(bannerBuffer, path.join(TMP_ROOT, "banner_color"));
+
     backup.thumbnail_url = thumbUrl;
     backup.banner_url = bannerUrl;
+    backup.gradient_color = gradientColor;
     backup.status = "images_uploaded";
     logBackup(backup);
     console.log("✅ Images uploaded.");
@@ -148,10 +152,20 @@ export async function runPodcastPipeline(db) {
       latestPodcastName: topicName,
       latestPodcastThumbnail: backup.thumbnail_url,
       latestPodcastBanner: backup.banner_url,
+      gradientColor: backup.gradient_color,
     });
     await db.prepare("INSERT OR REPLACE INTO gen_stats (key, data) VALUES (?, ?)").bind("podcast", statsData).run();
 
     // Write full metadata to tmp
+    // Get duration from the transcript segments
+    let duration = null;
+    try {
+      const transcriptData = JSON.parse(fs.readFileSync(path.join(TMP_ROOT, "transcript.json"), "utf-8"));
+      if (transcriptData.segments?.length) {
+        duration = Math.ceil(transcriptData.segments[transcriptData.segments.length - 1].end);
+      }
+    } catch { /* ignore */ }
+
     writeMetadata(path.join(TMP_ROOT, "metadata.json"), {
       id: podcastId,
       name: topicName,
@@ -162,8 +176,9 @@ export async function runPodcastPipeline(db) {
       transcript_url: backup.transcript_url,
       thumbnail_url: backup.thumbnail_url,
       banner_url: backup.banner_url,
+      gradient_color: backup.gradient_color,
       description: `AI-generated podcast about: ${topicName}`,
-      duration: null, // filled by frontend from audio
+      duration,
     });
 
     // cleanupTmp();
