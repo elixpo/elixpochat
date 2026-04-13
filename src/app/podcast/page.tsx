@@ -100,8 +100,54 @@ export default function PodcastPage() {
   const seekTo = (e: React.MouseEvent<HTMLDivElement>) => { if (!seekBarRef.current || !audioRef.current) return; const r = seekBarRef.current.getBoundingClientRect(); audioRef.current.currentTime = (Math.max(0, Math.min(e.clientX - r.left, r.width)) / r.width) * duration; };
   const fmt = (s: number) => { s = Math.max(0, Math.floor(s)); return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, "0")}`; };
   const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
-  const speechEntries = timeline.filter((e) => e.type === "male" || e.type === "female");
   const faviconUrl = sourceDomain ? `https://www.google.com/s2/favicons?domain=${sourceDomain}&sz=64` : "";
+
+  // Build granular sentence-level subtitles from timeline (memoized)
+  interface SubLine { text: string; speaker: "male" | "female"; start: number; end: number; }
+  const subLines = useRef<SubLine[]>([]);
+
+  useEffect(() => {
+    const lines: SubLine[] = [];
+    for (const entry of timeline) {
+      if (entry.type !== "male" && entry.type !== "female") continue;
+      // Split into short chunks (~60 chars each) for smooth rolling
+      const words = entry.content.split(/\s+/);
+      const chunks: string[] = [];
+      let current = "";
+      for (const word of words) {
+        if (current.length + word.length + 1 > 60 && current.length > 0) {
+          chunks.push(current);
+          current = word;
+        } else {
+          current = current ? current + " " + word : word;
+        }
+      }
+      if (current) chunks.push(current);
+
+      const dur = entry.end - entry.start;
+      const totalChars = chunks.reduce((s, t) => s + t.length, 0);
+      let offset = entry.start;
+      for (const chunk of chunks) {
+        const chunkDur = totalChars > 0 ? (chunk.length / totalChars) * dur : dur / chunks.length;
+        lines.push({ text: chunk, speaker: entry.type as "male" | "female", start: offset, end: offset + chunkDur });
+        offset += chunkDur;
+      }
+    }
+    subLines.current = lines;
+  }, [timeline]);
+
+  // Find the active subtitle chunk
+  const [activeSubLine, setActiveSubLine] = useState<SubLine | null>(null);
+
+  useEffect(() => {
+    const t = currentTime;
+    const found = subLines.current.find((s) => t >= s.start && t < s.end) || null;
+    // Only update if text actually changed
+    setActiveSubLine((prev) => {
+      if (found?.text === prev?.text) return prev;
+      return found;
+    });
+  }, [currentTime]);
 
   return (
     <section className="relative h-screen w-screen overflow-hidden bg-black">
@@ -154,27 +200,24 @@ export default function PodcastPage() {
         )}
 
         {/* Rolling subtitle — single line above player */}
-        {showCaptions && (() => {
-          const activeEntry = activeIdx >= 0 ? timeline[activeIdx] : null;
-          return (
-            <div className="flex-shrink-0 px-6 mb-2">
-              <div className="max-w-lg mx-auto text-center min-h-[48px] flex flex-col items-center justify-end">
-                {activeEntry && (activeEntry.type === "male" || activeEntry.type === "female") ? (
-                  <>
-                    <span className={`text-[9px] uppercase tracking-widest font-bold mb-1 ${activeEntry.type === "female" ? "text-pink-400/70" : "text-blue-400/70"}`}>
-                      {activeEntry.type === "female" ? "Liza" : "Lix"}
-                    </span>
-                    <p key={activeIdx} className="text-sm text-white/80 font-medium leading-snug animate-[fadeUp_0.3s_ease-out]">
-                      {activeEntry.content.length > 120 ? activeEntry.content.slice(0, 120) + "..." : activeEntry.content}
-                    </p>
-                  </>
-                ) : (
-                  <p className="text-xs text-white/20 italic">{loaded && !isPlaying ? "Press play" : ""}</p>
-                )}
-              </div>
+        {showCaptions && (
+          <div className="flex-shrink-0 px-6 mb-2">
+            <div className="max-w-lg mx-auto text-center min-h-[52px] flex flex-col items-center justify-end">
+              {activeSubLine ? (
+                <>
+                  <span className={`text-[9px] uppercase tracking-widest font-bold mb-1 transition-colors duration-200 ${activeSubLine.speaker === "female" ? "text-pink-400/70" : "text-blue-400/70"}`}>
+                    {activeSubLine.speaker === "female" ? "Liza" : "Lix"}
+                  </span>
+                  <p key={`${activeSubLine.start}-${activeSubLine.text.slice(0,20)}`} className="text-sm text-white/85 font-medium leading-snug animate-[fadeUp_0.25s_ease-out]">
+                    {activeSubLine.text}
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-white/20 italic">{loaded && !isPlaying ? "Press play" : "\u00A0"}</p>
+              )}
             </div>
-          );
-        })()}
+          </div>
+        )}
 
         {/* ═══ PLAYER ═══ */}
         <div className="flex-shrink-0 px-4 pb-6 pt-3">
