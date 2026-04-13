@@ -1,4 +1,5 @@
 import { chatCompletion, generateImage } from "../pollinations.js";
+import { MODELS } from "../config.js";
 
 /**
  * Generate a visual prompt for a news banner image.

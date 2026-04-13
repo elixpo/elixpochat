@@ -1,17 +1,18 @@
 import { chatCompletion } from "../pollinations.js";
+import { MODELS } from "../config.js";
 
 export async function getLatestInfo(topicName) {
   console.log(`🔍 Fetching latest info for: ${topicName}`);
   const content = await chatCompletion({
-    model: "perplexity-fast",
+    model: MODELS.research,
     messages: [
       { role: "user", content: `Find me the detailed latest news on this topic: ${topicName}` },
     ],
     seed: Math.floor(Math.random() * 1000),
   });
 
-  if (!content) throw new Error("perplexity-fast returned empty content");
-  console.log("✅ Received info from perplexity-fast.");
+  if (!content) throw new Error("Research returned empty content");
+  console.log("✅ Received research.");
   return content;
 }
 
@@ -33,7 +34,7 @@ export async function generatePodcastScript(infoMarkdown, topicName) {
     "Don't include repetitive words in the greeting!";
 
   const script = await chatCompletion({
-    model: "gemini-fast",
+    model: MODELS.scriptWriter,
     messages: [
       { role: "system", content: systemPrompt },
       {
