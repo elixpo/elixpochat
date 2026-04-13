@@ -18,7 +18,8 @@ export function compressAudio(wavBuffer, name = "audio") {
   fs.writeFileSync(wavPath, wavBuffer);
 
   try {
-    execSync(`ffmpeg -y -i "${wavPath}" -codec:a libmp3lame -b:a 128k -ac 1 "${mp3Path}" 2>/dev/null`);
+    // Normalize volume + compress to MP3. loudnorm boosts quiet audio to broadcast level.
+    execSync(`ffmpeg -y -i "${wavPath}" -af "loudnorm=I=-16:TP=-1.5:LRA=11" -codec:a libmp3lame -b:a 128k -ac 1 "${mp3Path}" 2>/dev/null`);
     const compressed = fs.readFileSync(mp3Path);
     const ratio = ((1 - compressed.length / wavBuffer.length) * 100).toFixed(1);
     console.log(`  🗜️ Audio: ${(wavBuffer.length / 1024 / 1024).toFixed(1)}MB → ${(compressed.length / 1024 / 1024).toFixed(1)}MB (${ratio}% smaller)`);

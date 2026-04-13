@@ -1,6 +1,7 @@
 import { generateAudio, transcribeAudio } from "../pollinations.js";
 import { compressAudio } from "../compress.js";
-import { PODCAST_TTS_PROMPT, PODCAST_VOICE } from "../config.js";
+import { PODCAST_TTS_PROMPT } from "../prompts.js";
+import { PODCAST_VOICE } from "../config.js";
 import path from "path";
 
 const TMP = path.resolve("tmp/podcast");
