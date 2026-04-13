@@ -8,12 +8,22 @@ import { getLatestInfo, generatePodcastScript } from "./creator.js";
 import { generatePodcastSpeech } from "./audio.js";
 import { generatePodcastThumbnail, generatePodcastBanner } from "./images.js";
 
-const BACKUP_FILE = path.resolve("tmp/podcastBackup.json");
+const TMP_DIR = path.resolve("tmp");
+const BACKUP_FILE = path.join(TMP_DIR, "podcastBackup.json");
 const CLOUDINARY_ROOT = "elixpochat/podcast";
 
 function ensureTmp() {
-  const dir = path.resolve("tmp");
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+}
+
+function cleanupTmp() {
+  const prefixes = ["podcast_", "podcastBackup"];
+  for (const file of fs.readdirSync(TMP_DIR)) {
+    if (prefixes.some((p) => file.startsWith(p))) {
+      fs.unlinkSync(path.join(TMP_DIR, file));
+    }
+  }
+  console.log("🧹 Cleaned up podcast tmp files.");
 }
 
 function logBackup(state) {
@@ -100,9 +110,13 @@ export async function runPodcastPipeline(db) {
   if (backup.status === "audio_uploaded") {
     console.log("🎨 Generating images...");
     const thumbBuffer = await generatePodcastThumbnail(topicName);
+    fs.writeFileSync(path.join(TMP_DIR, "podcast_thumbnail.jpg"), thumbBuffer);
+    console.log(`  💾 Thumbnail saved → tmp/podcast_thumbnail.jpg`);
     const thumbUrl = await uploadBuffer(thumbBuffer, folder, "thumbnail");
 
     const bannerBuffer = await generatePodcastBanner(topicName);
+    fs.writeFileSync(path.join(TMP_DIR, "podcast_banner.jpg"), bannerBuffer);
+    console.log(`  💾 Banner saved → tmp/podcast_banner.jpg`);
     const bannerUrl = await uploadBuffer(bannerBuffer, folder, "banner");
 
     backup.thumbnail_url = thumbUrl;
@@ -140,7 +154,7 @@ export async function runPodcastPipeline(db) {
     });
     await db.prepare("INSERT OR REPLACE INTO gen_stats (key, data) VALUES (?, ?)").bind("podcast", statsData).run();
 
-    fs.unlinkSync(BACKUP_FILE);
+    // cleanupTmp();
     backup.status = "complete";
     console.log("✅ Podcast pipeline complete!");
   }

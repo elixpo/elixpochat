@@ -15,12 +15,22 @@ import {
   createCombinedNewsSummary,
 } from "./images.js";
 
-const BACKUP_FILE = path.resolve("tmp/newsBackup.json");
+const TMP_DIR = path.resolve("tmp");
+const BACKUP_FILE = path.join(TMP_DIR, "newsBackup.json");
 const CLOUDINARY_ROOT = "elixpochat/news";
 
 function ensureTmp() {
-  const dir = path.resolve("tmp");
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  if (!fs.existsSync(TMP_DIR)) fs.mkdirSync(TMP_DIR, { recursive: true });
+}
+
+function cleanupTmp() {
+  const prefixes = ["news_", "newsBackup"];
+  for (const file of fs.readdirSync(TMP_DIR)) {
+    if (prefixes.some((p) => file.startsWith(p))) {
+      fs.unlinkSync(path.join(TMP_DIR, file));
+    }
+  }
+  console.log("🧹 Cleaned up news tmp files.");
 }
 
 function logBackup(state) {
@@ -149,6 +159,12 @@ export async function runNewsPipeline(db) {
       try {
         const prompt = await generateVisualPrompt(item.topic);
         const imgBuffer = await safeRetry(() => generateBannerImage(prompt));
+
+        // Save to tmp
+        const bannerTmpPath = path.join(TMP_DIR, `news_${index}_banner.jpg`);
+        fs.writeFileSync(bannerTmpPath, imgBuffer);
+        console.log(`  💾 Banner saved → ${bannerTmpPath}`);
+
         const imageUrl = await uploadBuffer(imgBuffer, `${CLOUDINARY_ROOT}/${overallId}/${newsId}`, "newsBackground");
         item.image_url = imageUrl;
         item.status = "complete";
@@ -182,6 +198,11 @@ export async function runNewsPipeline(db) {
 
     const thumbPrompt = await createCombinedVisualPrompt(completedTopics);
     const thumbBuffer = await generateThumbnailImage(thumbPrompt);
+
+    const thumbTmpPath = path.join(TMP_DIR, "news_thumbnail.jpg");
+    fs.writeFileSync(thumbTmpPath, thumbBuffer);
+    console.log(`  💾 Thumbnail saved → ${thumbTmpPath}`);
+
     const thumbUrl = await uploadBuffer(thumbBuffer, `${CLOUDINARY_ROOT}/${overallId}`, "newsThumbnail");
 
     const summaryText = await createCombinedNewsSummary(completedTopics);
@@ -213,7 +234,8 @@ export async function runNewsPipeline(db) {
     });
     await db.prepare("INSERT OR REPLACE INTO gen_stats (key, data) VALUES (?, ?)").bind("news", statsData).run();
 
-    fs.unlinkSync(BACKUP_FILE);
+    // Cleanup all tmp files
+    // cleanupTmp();
     console.log("✅ News pipeline complete!");
   } catch (err) {
     backup.status = "final_error";
