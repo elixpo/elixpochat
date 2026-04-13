@@ -87,7 +87,7 @@ export async function generatePodcastScript(infoMarkdown, topicName) {
     "- Sentences are SHORT. This is spoken language. No complex sentences.\n\n" +
     "OUTPUT RULES:\n" +
     "- ONLY spoken words with [MALE], [FEMALE], [IMAGE:...] tags. NO markdown, NO bold, NO asterisks, NO stage directions.\n" +
-    "- STRICT WORD LIMIT: 400-450 words TOTAL. The TTS speaks at ~88 words per minute with breathing and pauses across stitched segments, so 440 words = exactly 5 minutes of final audio. Do NOT exceed 450 words.\n" +
+    "- STRICT WORD LIMIT: 750-800 words TOTAL. Do NOT exceed 800 words.\n" +
     "- End with a quick natural sign-off — either host can wrap up, the other adds a line. Keep it brief.";
 
   const raw = await chatCompletion({
@@ -96,7 +96,7 @@ export async function generatePodcastScript(infoMarkdown, topicName) {
       { role: "system", content: systemPrompt },
       {
         role: "user",
-        content: `Based on this content about '${topicName}':\n\n${infoMarkdown}\n\nWrite a two-host podcast script (${PODCAST_HOST_FEMALE} & ${PODCAST_HOST_MALE}), STRICTLY 400-450 words total, with [MALE], [FEMALE], and exactly 5 [IMAGE:...] tags. Be concise but engaging. No repeated greetings.`,
+        content: `Based on this content about '${topicName}':\n\n${infoMarkdown}\n\nWrite a two-host podcast script (${PODCAST_HOST_FEMALE} & ${PODCAST_HOST_MALE}), STRICTLY 750-800 words total, with [MALE], [FEMALE], and exactly 5 [IMAGE:...] tags. Be concise but engaging. No repeated greetings.`,
       },
     ],
     seed: Math.floor(Math.random() * 1000),
