@@ -38,6 +38,7 @@ export async function generateVoiceover(script, newsIndex, voice = "shimmer") {
           { role: "system", content: "Rewrite the following spoken dialogue to be friendly and safe for all audiences. Replace any references marked [topic] with gentle neutral phrasing. Keep the same conversational tone, same length, same meaning. Output only the rewritten text, nothing else." },
           { role: "user", content: safeInput },
         ],
+        seed : 58541,
       });
     }
   }

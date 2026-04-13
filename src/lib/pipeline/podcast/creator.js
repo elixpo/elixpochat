@@ -65,24 +65,30 @@ export async function generatePodcastScript(infoMarkdown, topicName) {
   console.log("⏳ Generating podcast script...");
   const now = new Date().toISOString();
   const systemPrompt =
-    `You are a podcast scriptwriter for the 'Elixpo Podcast' — a two-host show. The female host is named ${PODCAST_HOST_FEMALE} and the male host is named ${PODCAST_HOST_MALE}. ` +
-    `Current date: ${now}. Mention the date if relevant. ` +
-    "Use these tags to mark who speaks:\n" +
-    `  [FEMALE] — ${PODCAST_HOST_FEMALE}'s lines\n` +
-    `  [MALE] — ${PODCAST_HOST_MALE}'s lines\n` +
-    "  [IMAGE:description] — insert exactly 5 of these throughout the script. Description should be a short 15-20 word visual scene related to what's being discussed.\n\n" +
-    "Rules:\n" +
-    `- Randomly pick who opens the show — sometimes ${PODCAST_HOST_FEMALE} welcomes listeners and introduces ${PODCAST_HOST_MALE}, sometimes ${PODCAST_HOST_MALE} opens and introduces ${PODCAST_HOST_FEMALE}. Vary it.\n` +
-    "- The second host responds with a quick natural reaction — 'Hey!', 'What's up everyone!', 'Good to be here!' — NOT a full greeting. No repeating the welcome. Jump straight into the topic.\n" +
-    "- NO overlapping content. Each host adds NEW information or a NEW angle. If one host explains something, the other reacts, asks a question, or builds on it — never restates the same point.\n" +
-    "- Alternate naturally: one host says 2-4 short sentences, then the other picks up. Like a real conversation, not a ping-pong of monologues.\n" +
-    "- They refer to each other by name occasionally to make it feel personal.\n" +
-    "- Sprinkle natural fillers: 'umm', 'hmm', 'you know', 'right?', 'I mean', 'okay so'.\n" +
-    "- Keep sentences SHORT and punchy — this is spoken, not written prose.\n" +
-    "- Place [IMAGE:...] tags at 5 evenly spaced moments in the conversation.\n" +
-    "- CRITICAL: Output ONLY spoken words with tags. NO markdown, NO bold, NO asterisks, NO stage directions, NO parentheticals.\n" +
-    "- STRICT LIMIT: 900-1000 words total. Do NOT exceed 1000 words. The TTS speaks at ~150 wpm with pauses, so 1000 words = ~5 minutes.\n" +
-    `- End naturally — either host can start the sign-off and the other adds to it. Vary who wraps up. Keep it short and warm.`;
+    `You are writing a script for the 'Elixpo Podcast'. There are two co-hosts who know each other well:\n` +
+    `  - ${PODCAST_HOST_FEMALE} (female) — warm, curious, explains things clearly\n` +
+    `  - ${PODCAST_HOST_MALE} (male) — energetic, witty, loves dropping surprising facts\n\n` +
+    `Current date: ${now}.\n\n` +
+    "FORMAT — use these tags:\n" +
+    `  [FEMALE] before ${PODCAST_HOST_FEMALE}'s lines\n` +
+    `  [MALE] before ${PODCAST_HOST_MALE}'s lines\n` +
+    "  [IMAGE:description] — exactly 5 of these, 15-20 word visual scene descriptions\n\n" +
+    "OPENING:\n" +
+    `- ONE host opens with a quick welcome to Elixpo Podcast and introduces the other BY NAME: e.g. "${PODCAST_HOST_FEMALE}: Hey everyone, welcome to the Elixpo Podcast! I'm ${PODCAST_HOST_FEMALE}, and joining me today is ${PODCAST_HOST_MALE}!"\n` +
+    `- The other host replies with ONE short line — "Hey ${PODCAST_HOST_FEMALE}!" or "Good to be here!" — then they IMMEDIATELY dive into the topic. That's it. No more greetings.\n` +
+    "- Vary who opens — sometimes Lix, sometimes Liza.\n\n" +
+    "CONVERSATION RULES:\n" +
+    "- This is a FAST-PACED conversation. They talk quickly, jump between points, interrupt each other playfully.\n" +
+    "- NEVER start a turn with a greeting or 'hey there' or 'welcome back'. After the opening, every turn starts mid-conversation — reacting, questioning, adding info.\n" +
+    "- Each turn is 3-5 short sentences MAX. No monologues. Quick back and forth.\n" +
+    `- They call each other by name naturally: '${PODCAST_HOST_MALE}, did you see...' or 'Okay ${PODCAST_HOST_FEMALE}, but here's the thing...'\n` +
+    "- NO repeated information. If one host explains something, the other NEVER restates it. They react, challenge, add a new angle, or ask a follow-up.\n" +
+    "- Natural fillers sparingly: 'you know', 'right?', 'I mean', 'okay so'. Not every turn.\n" +
+    "- Sentences are SHORT. This is spoken language. No complex sentences.\n\n" +
+    "OUTPUT RULES:\n" +
+    "- ONLY spoken words with [MALE], [FEMALE], [IMAGE:...] tags. NO markdown, NO bold, NO asterisks, NO stage directions.\n" +
+    "- STRICT WORD LIMIT: 400-450 words TOTAL. The TTS speaks at ~88 words per minute with breathing and pauses across stitched segments, so 440 words = exactly 5 minutes of final audio. Do NOT exceed 450 words.\n" +
+    "- End with a quick natural sign-off — either host can wrap up, the other adds a line. Keep it brief.";
 
   const raw = await chatCompletion({
     model: MODELS.scriptWriter,
@@ -90,7 +96,7 @@ export async function generatePodcastScript(infoMarkdown, topicName) {
       { role: "system", content: systemPrompt },
       {
         role: "user",
-        content: `Based on this content about '${topicName}':\n\n${infoMarkdown}\n\nWrite a two-host podcast script (${PODCAST_HOST_FEMALE} & ${PODCAST_HOST_MALE}) of 900-1000 words MAX with [MALE], [FEMALE], and exactly 5 [IMAGE:...] tags. No repeated greetings, no overlapping content.`,
+        content: `Based on this content about '${topicName}':\n\n${infoMarkdown}\n\nWrite a two-host podcast script (${PODCAST_HOST_FEMALE} & ${PODCAST_HOST_MALE}), STRICTLY 400-450 words total, with [MALE], [FEMALE], and exactly 5 [IMAGE:...] tags. Be concise but engaging. No repeated greetings.`,
       },
     ],
     seed: Math.floor(Math.random() * 1000),

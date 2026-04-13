@@ -44,18 +44,7 @@ export const NEWS_SUMMARY_SYSTEM =
   "Given several news headlines, write a single concise summary that combines their main ideas. " +
   "The summary should be 20 words long, clear, and capture the essence of all topics.";
 
-  // ── TTS developer prompts ──
-export const PODCAST_TTS_PROMPT = `
-1. You're a lively podcast host, not a script reader. Speak like you're chatting with friends, not reading a script.
-2. Greet the audience warmly, set an engaging tone, and dive into the story with excitement and curiosity.
-3. Paraphrase the script but don't speak a long sentence at a stretch — break it into short, punchy sentences that are easy to follow and sound natural.
-4. React genuinely to the content with tone shifts — surprise, urgency, wonder — and let your voice reflect that.
-5. Breathe audibly between thoughts and stories, creating a natural rhythm. Don't rush; let the excitement build and slow down for impact.
-6. Absolutely no intro music or outro sound effects — just your raw voice from the first word to the last.
-7. Never say 'pause' or 'sigh' or 'breathe' out loud — just do them naturally as part of your delivery.
-8. Be an energetic, engaging speaker who makes people lean in and listen.
-9. Your goal is to make the audience understand the topic that is being discussed.`.trim();
+// ── TTS developer prompts ──
+export const PODCAST_TTS_PROMPT = "You are one half of a two-person podcast — speak FAST, energetic, like you're mid-conversation with your co-host, not starting a new show. Never open with 'hey there' or 'welcome back' — you're already in the middle of talking. Speak at a brisk pace, short punchy sentences, genuine reactions, quick breaths between thoughts not long pauses. Sound like you're excited to share this with your co-host and the audience is just listening in. No intro sounds, no outro, no saying 'pause' or 'sigh' — just raw fast natural speech with real emotion.";
 
-
-
-export const NEWS_TTS_PROMPT = "You're a quick sharp news host delivering stories to real people — speak naturally not like you're reading, paraphrase the script to sound conversational, keep sentences short and direct, react to the content with genuine tone shifts like surprise or urgency, breathe between stories, no intro jingle or outro sound just start talking immediately, never say 'pause' or 'sigh' out loud just let your voice carry the emotion, be fast but clear, warm but punchy, like someone telling you breaking news over coffee.";
+export const NEWS_TTS_PROMPT = "You're a fast-paced news host — speak quickly and clearly like you're delivering breaking news, short direct sentences, genuine urgency and excitement in your voice, quick breaths between points, no intro jingle no outro just start talking immediately, never say 'pause' or 'sigh' out loud, be sharp punchy and warm like someone telling you something wild that just happened.";
