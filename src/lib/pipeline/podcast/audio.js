@@ -27,10 +27,11 @@ export async function generatePodcastSpeech(script, voice = "shimmer") {
 
   console.log("🎙️ Generating podcast speech (openai-audio)...");
   const base64 = await generateAudio({ script, voice, developerPrompt: DEVELOPER_PROMPT });
-  const buffer = Buffer.from(base64, "base64");
+  const rawBuffer = Buffer.from(base64, "base64");
 
-  // Save to tmp
-  const tmpPath = path.join(TMP, "podcast_speech.wav");
+  // Compress WAV → MP3 and save to tmp
+  const buffer = compressAudio(rawBuffer, "podcast_speech");
+  const tmpPath = path.join(TMP, "podcast_speech.mp3");
   fs.writeFileSync(tmpPath, buffer);
   console.log(`✅ Podcast speech saved → ${tmpPath} (${buffer.length} bytes)`);
 

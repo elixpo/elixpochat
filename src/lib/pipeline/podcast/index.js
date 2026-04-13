@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 
 import { uploadBuffer } from "../storage.js";
+import { compressImage } from "../compress.js";
 import { fetchPodcastTopics, pickPodcastTopic } from "./topics.js";
 import { getLatestInfo, generatePodcastScript } from "./creator.js";
 import { generatePodcastSpeech } from "./audio.js";
@@ -109,14 +110,14 @@ export async function runPodcastPipeline(db) {
   // Images
   if (backup.status === "audio_uploaded") {
     console.log("🎨 Generating images...");
-    const thumbBuffer = await generatePodcastThumbnail(topicName);
+    const rawThumb = await generatePodcastThumbnail(topicName);
+    const thumbBuffer = compressImage(rawThumb, "podcast_thumbnail");
     fs.writeFileSync(path.join(TMP_DIR, "podcast_thumbnail.jpg"), thumbBuffer);
-    console.log(`  💾 Thumbnail saved → tmp/podcast_thumbnail.jpg`);
     const thumbUrl = await uploadBuffer(thumbBuffer, folder, "thumbnail");
 
-    const bannerBuffer = await generatePodcastBanner(topicName);
+    const rawBanner = await generatePodcastBanner(topicName);
+    const bannerBuffer = compressImage(rawBanner, "podcast_banner");
     fs.writeFileSync(path.join(TMP_DIR, "podcast_banner.jpg"), bannerBuffer);
-    console.log(`  💾 Banner saved → tmp/podcast_banner.jpg`);
     const bannerUrl = await uploadBuffer(bannerBuffer, folder, "banner");
 
     backup.thumbnail_url = thumbUrl;

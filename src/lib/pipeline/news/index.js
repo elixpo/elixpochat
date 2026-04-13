@@ -4,6 +4,7 @@ import path from "path";
 
 import { MAX_NEWS_ITEMS, NEWS_VOICES } from "../config.js";
 import { uploadBuffer } from "../storage.js";
+import { compressImage } from "../compress.js";
 import { fetchTrendingTopics } from "./topics.js";
 import { generateNewsAnalysis, generateNewsScript } from "./analysis.js";
 import { generateVoiceover } from "./voiceover.js";
@@ -158,12 +159,9 @@ export async function runNewsPipeline(db) {
     if (item.status === "audio_uploaded" || item.status?.includes("image_failed")) {
       try {
         const prompt = await generateVisualPrompt(item.topic);
-        const imgBuffer = await safeRetry(() => generateBannerImage(prompt));
-
-        // Save to tmp
-        const bannerTmpPath = path.join(TMP_DIR, `news_${index}_banner.jpg`);
-        fs.writeFileSync(bannerTmpPath, imgBuffer);
-        console.log(`  💾 Banner saved → ${bannerTmpPath}`);
+        const rawImg = await safeRetry(() => generateBannerImage(prompt));
+        const imgBuffer = compressImage(rawImg, `news_${index}_banner`);
+        fs.writeFileSync(path.join(TMP_DIR, `news_${index}_banner.jpg`), imgBuffer);
 
         const imageUrl = await uploadBuffer(imgBuffer, `${CLOUDINARY_ROOT}/item_${index}`, "banner");
         item.image_url = imageUrl;
@@ -197,11 +195,9 @@ export async function runNewsPipeline(db) {
     const completedTopics = items.map((it) => it.topic).filter(Boolean);
 
     const thumbPrompt = await createCombinedVisualPrompt(completedTopics);
-    const thumbBuffer = await generateThumbnailImage(thumbPrompt);
-
-    const thumbTmpPath = path.join(TMP_DIR, "news_thumbnail.jpg");
-    fs.writeFileSync(thumbTmpPath, thumbBuffer);
-    console.log(`  💾 Thumbnail saved → ${thumbTmpPath}`);
+    const rawThumb = await generateThumbnailImage(thumbPrompt);
+    const thumbBuffer = compressImage(rawThumb, "news_thumbnail");
+    fs.writeFileSync(path.join(TMP_DIR, "news_thumbnail.jpg"), thumbBuffer);
 
     const thumbUrl = await uploadBuffer(thumbBuffer, CLOUDINARY_ROOT, "thumbnail");
 
