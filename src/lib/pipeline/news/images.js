@@ -13,7 +13,7 @@ export async function generateVisualPrompt(topic) {
     "'cinematic lighting', 'soft haze', or 'distant silhouette'. Output just one 25-30 word image description suitable for a banner (1280x720).";
 
   return chatCompletion({
-    model: "gemini-fast",
+    model: MODELS.promptWriter,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: topic },
@@ -32,7 +32,7 @@ export async function generateBannerImage(prompt) {
     prompt: `${prompt} -- aspect ratio of 16:9 landscape mode`,
     width: 1280,
     height: 720,
-    model: "zimage",
+    model: MODELS.imageGen,
     seed: 42,
   });
 }
@@ -49,7 +49,7 @@ export async function createCombinedVisualPrompt(topics) {
 
   const combined = Array.isArray(topics) ? topics.join(" | ") : topics;
   return chatCompletion({
-    model: "gemini-fast",
+    model: MODELS.promptWriter,
     messages: [
       { role: "system", content: systemPrompt },
       { role: "user", content: combined },
@@ -69,7 +69,7 @@ export async function generateThumbnailImage(prompt) {
     prompt: `${prompt} -- vector digital art -- colorful -- 1:1 icon style`,
     width: 512,
     height: 512,
-    model: "zimage",
+    model: MODELS.imageGen,
     seed: 42,
   });
 }
@@ -80,7 +80,7 @@ export async function generateThumbnailImage(prompt) {
 export async function createCombinedNewsSummary(topics) {
   const combined = Array.isArray(topics) ? topics.join(" | ") : topics;
   return chatCompletion({
-    model: "gemini-fast",
+    model: MODELS.promptWriter,
     messages: [
       {
         role: "system",
