@@ -139,33 +139,27 @@ export async function runNewsPipeline(db) {
       }
     }
 
-    // Step 2: Banner (generated after topic/script is decided)
+    // Step 2: Banner (non-blocking — if it fails, proceed to audio)
     if (item.status === "script_generated" || item.status?.includes("image_failed")) {
       try {
         const prompt = await generateVisualPrompt(item.topic);
         const rawImg = await safeRetry(() => generateBannerImage(prompt));
         const imgBuffer = compressBanner(rawImg, path.join(itemDir, "banner"));
         fs.writeFileSync(path.join(itemDir, "banner.jpg"), imgBuffer);
-
-        // Extract gradient color from banner
         const gradientColor = extractDominantColor(imgBuffer, path.join(itemDir, "banner_color"));
-
         const imageUrl = await uploadBuffer(imgBuffer, `${CLOUDINARY_ROOT}/item_${index}`, "banner");
         item.image_url = imageUrl;
         item.gradient_color = gradientColor;
-        item.status = "image_uploaded";
-        item.error = null;
-        items[index] = item;
-        logBackup(backup);
         console.log(`✅ Banner uploaded for topic ${index}`);
       } catch (err) {
-        item.status = `news${index}_image_failed`;
-        item.error = err.message;
-        items[index] = item;
-        logBackup(backup);
-        console.error(`❌ Image error for topic ${index}: ${err.message}`);
-        continue;
+        console.warn(`⚠️ Banner failed for topic ${index}: ${err.message} — continuing without image`);
+        item.image_url = "";
+        item.gradient_color = "#1a1a2e";
       }
+      item.status = "image_uploaded";
+      item.error = null;
+      items[index] = item;
+      logBackup(backup);
     }
 
     // Step 3: Audio (multi-voice) + Timeline
