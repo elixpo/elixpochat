@@ -56,7 +56,7 @@ export async function generateAudio({ script, voice = "shimmer", developerPrompt
 export async function transcribeAudio(audioBuffer, filename = "audio.wav") {
   const formData = new FormData();
   formData.append("file", new Blob([audioBuffer]), filename);
-  formData.append("model", "whisper-large-v3");
+  formData.append("model", "whisper");
 
   const res = await fetch(`${POLLINATIONS_BASE}/v1/audio/transcriptions`, {
     method: "POST",
