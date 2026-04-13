@@ -1,4 +1,4 @@
-import { POLLINATIONS_BASE, POLLINATIONS_API_KEY } from "./config.js";
+import { POLLINATIONS_BASE, POLLINATIONS_API_KEY, MODELS } from "./config.js";
 
 export async function chatCompletion({ model, messages, json = false, seed, temperature }) {
   const body = { model, messages };
@@ -53,7 +53,7 @@ export async function generateAudio({ script, voice = "shimmer", developerPrompt
 async function transcribeChunk(chunkBuffer, filename) {
   const formData = new FormData();
   formData.append("file", new Blob([chunkBuffer]), filename);
-  formData.append("model", "whisper");
+  formData.append("model", MODELS.transcription);
 
   const res = await fetch(`${POLLINATIONS_BASE}/v1/audio/transcriptions`, {
     method: "POST",
