@@ -1,11 +1,12 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useChat } from "@/lib/chat/use-chat";
 import MessageBubble from "@/components/chat/MessageBubble";
 import ChatInput from "@/components/chat/ChatInput";
+import ChatSidebar from "@/components/chat/ChatSidebar";
 import Link from "next/link";
 
 export default function ChatPage() {
@@ -14,34 +15,15 @@ export default function ChatPage() {
   const { user, loading: authLoading, login } = useAuth();
   const { messages, isLoading, sessionId, sendMessage, stopStreaming, loadSession } = useChat(id === "new" ? undefined : id);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
+  const [model, setModel] = useState("lixsearch");
 
-  // Load existing session
-  useEffect(() => {
-    if (id !== "new" && id) {
-      loadSession(id);
-    }
-  }, [id, loadSession]);
-
-  // Update URL when session is created
-  useEffect(() => {
-    if (sessionId && id === "new") {
-      router.replace(`/chat/${sessionId}`, { scroll: false });
-    }
-  }, [sessionId, id, router]);
-
-  // Auto-scroll on new messages
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [messages]);
+  useEffect(() => { if (id !== "new" && id) loadSession(id); }, [id, loadSession]);
+  useEffect(() => { if (sessionId && id === "new") router.replace(`/chat/${sessionId}`, { scroll: false }); }, [sessionId, id, router]);
+  useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
 
   if (authLoading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-white">
-        <div className="w-8 h-8 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" />
-      </div>
-    );
+    return <div className="flex items-center justify-center h-screen bg-white"><div className="w-8 h-8 border-2 border-neutral-200 border-t-neutral-900 rounded-full animate-spin" /></div>;
   }
 
   if (!user) {
@@ -49,52 +31,50 @@ export default function ChatPage() {
       <div className="flex flex-col items-center justify-center h-screen bg-white px-6">
         <img src="/images/logo.png" alt="Elixpo" width={64} height={64} className="rounded-2xl mb-6 opacity-60" />
         <h2 className="text-2xl font-bold text-neutral-900 mb-2">Sign in to chat</h2>
-        <p className="text-neutral-500 text-sm leading-relaxed text-center max-w-sm mb-6">
-          Connect with your Elixpo account to start AI conversations.
-        </p>
-        <button onClick={login} className="px-8 py-3 rounded-full text-sm font-semibold bg-neutral-900 text-white hover:bg-neutral-800 transition-colors cursor-pointer">
-          Sign in with Elixpo
-        </button>
+        <p className="text-neutral-500 text-sm leading-relaxed text-center max-w-sm mb-6">Connect with your Elixpo account to start AI conversations.</p>
+        <button onClick={login} className="px-8 py-3 rounded-full text-sm font-semibold bg-neutral-900 text-white hover:bg-neutral-800 transition-colors cursor-pointer">Sign in with Elixpo</button>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-screen bg-white">
-      {/* Header */}
-      <header className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <Link href="/" className="flex items-center gap-2">
-            <img src="/images/logo.png" alt="Elixpo" width={28} height={28} className="rounded-md" />
-            <span className="font-bold text-sm text-neutral-900">Elixpo Chat</span>
-          </Link>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link href="/chat/new" className="px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 transition-colors">
-            + New chat
-          </Link>
-          <span className="text-[10px] text-neutral-300 font-mono">{sessionId ? sessionId.slice(0, 8) : "new"}</span>
-        </div>
-      </header>
+    <div className="flex h-screen bg-white">
+      {/* Left sidebar */}
+      <ChatSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6" style={{ scrollbarWidth: "thin" }}>
-        <div className="max-w-3xl mx-auto space-y-6">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center pt-[20vh]">
-              <img src="/images/logo.png" alt="" width={40} height={40} className="rounded-xl mb-4 opacity-30" />
-              <h2 className="text-lg font-bold text-neutral-900 mb-1">Hey {user.displayName}!</h2>
-              <p className="text-sm text-neutral-400">What would you like to know?</p>
-            </div>
-          )}
-          {messages.map((msg) => (
-            <MessageBubble key={msg.id} message={msg} />
-          ))}
+      {/* Main chat area */}
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <header className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="flex items-center gap-2">
+              <img src="/images/logo.png" alt="Elixpo" width={28} height={28} className="rounded-md" />
+              <span className="font-bold text-sm text-neutral-900">Elixpo Chat</span>
+            </Link>
+          </div>
+          <div className="flex items-center gap-3">
+            <Link href="/chat/new" className="px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 transition-colors">+ New chat</Link>
+            <span className="text-[10px] text-neutral-300 font-mono">{sessionId ? sessionId.slice(0, 8) : "new"}</span>
+          </div>
+        </header>
+
+        {/* Messages */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6" style={{ scrollbarWidth: "thin" }}>
+          <div className="max-w-3xl mx-auto space-y-6">
+            {messages.length === 0 && (
+              <div className="flex flex-col items-center justify-center pt-[20vh]">
+                <img src="/images/logo.png" alt="" width={40} height={40} className="rounded-xl mb-4 opacity-30" />
+                <h2 className="text-lg font-bold text-neutral-900 mb-1">Hey {user.displayName}!</h2>
+                <p className="text-sm text-neutral-400">What would you like to know?</p>
+              </div>
+            )}
+            {messages.map((msg) => <MessageBubble key={msg.id} message={msg} />)}
+          </div>
         </div>
+
+        {/* Input */}
+        <ChatInput onSend={sendMessage} onStop={stopStreaming} isLoading={isLoading} model={model} onModelChange={setModel} />
       </div>
-
-      {/* Input */}
-      <ChatInput onSend={sendMessage} onStop={stopStreaming} isLoading={isLoading} />
     </div>
   );
 }
