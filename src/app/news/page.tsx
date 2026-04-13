@@ -17,6 +17,12 @@ export default function NewsPage() {
   const [duration, setDuration] = useState(0);
   const [loading, setLoading] = useState(true);
   const [gradientColor, setGradientColor] = useState("#1a1a2e");
+  const [showCaptions, setShowCaptions] = useState(true);
+
+  // Subtitle state
+  interface SubLine { text: string; speaker: "male" | "female"; start: number; end: number; }
+  const subLines = useRef<SubLine[]>([]);
+  const [activeSubLine, setActiveSubLine] = useState<SubLine | null>(null);
 
   const audioRefs = useRef<HTMLAudioElement[]>([]);
   const playTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,7 +65,13 @@ export default function NewsPage() {
     const audio = audioRefs.current[currentIdx];
     if (!audio) return;
 
-    const onTimeUpdate = () => { setCurrentTime(audio.currentTime); setDuration(audio.duration || 0); };
+    const onTimeUpdate = () => {
+      setCurrentTime(audio.currentTime);
+      setDuration(audio.duration || 0);
+      // Update active subtitle
+      const found = subLines.current.find((s) => audio.currentTime >= s.start && audio.currentTime < s.end) || null;
+      setActiveSubLine((prev) => found?.text === prev?.text ? prev : found);
+    };
     const onEnded = () => {
       if (currentIdx < items.length - 1) {
         const next = currentIdx + 1;
@@ -77,6 +89,30 @@ export default function NewsPage() {
     audio.addEventListener("pause", onPause);
 
     updateGradient(items[currentIdx]);
+
+    // Build subtitle chunks from timeline
+    const tl: TimelineEntry[] = items[currentIdx]?.timeline || [];
+    const lines: SubLine[] = [];
+    for (const entry of tl) {
+      const words = entry.content.split(/\s+/);
+      const chunks: string[] = [];
+      let cur = "";
+      for (const w of words) {
+        if (cur.length + w.length + 1 > 60 && cur) { chunks.push(cur); cur = w; }
+        else cur = cur ? cur + " " + w : w;
+      }
+      if (cur) chunks.push(cur);
+      const dur = entry.end - entry.start;
+      const totalChars = chunks.reduce((s, t) => s + t.length, 0);
+      let offset = entry.start;
+      for (const chunk of chunks) {
+        const chunkDur = totalChars > 0 ? (chunk.length / totalChars) * dur : dur / chunks.length;
+        lines.push({ text: chunk, speaker: entry.type as "male" | "female", start: offset, end: offset + chunkDur });
+        offset += chunkDur;
+      }
+    }
+    subLines.current = lines;
+    setActiveSubLine(null);
 
     return () => {
       audio.removeEventListener("timeupdate", onTimeUpdate);
