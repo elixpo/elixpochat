@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { generateAudio, transcribeAudio, chatCompletion } from "../pollinations.js";
+import { generateAudio, chatCompletion } from "../pollinations.js";
 import { compressAudio } from "../compress.js";
 import { NEWS_TTS_PROMPT } from "../prompts.js";
 import { MODELS } from "../config.js";
@@ -48,9 +48,5 @@ export async function generateVoiceover(script, newsIndex, voice = "shimmer") {
   fs.writeFileSync(path.join(itemDir, "audio.mp3"), buffer);
   console.log(`✅ Voiceover saved (${buffer.length} bytes)`);
 
-  console.log(`📝 Transcribing audio for topic ${newsIndex}...`);
-  const transcript = await transcribeAudio(buffer, `news${newsIndex}.mp3`);
-  console.log(`✅ Transcript: ${transcript.segments?.length || 0} segments`);
-
-  return { buffer, transcript };
+  return { buffer };
 }

@@ -1,7 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { execSync } from "child_process";
-import { generateAudio, transcribeAudio, chatCompletion } from "../pollinations.js";
+import { generateAudio, chatCompletion } from "../pollinations.js";
 import { compressAudio } from "../compress.js";
 import { PODCAST_VOICE_FEMALE, PODCAST_VOICE_MALE, MODELS } from "../config.js";
 import { PODCAST_TTS_PROMPT } from "../prompts.js";
@@ -145,10 +145,5 @@ export async function generatePodcastSpeech(sections) {
   for (const p of segmentPaths) if (fs.existsSync(p)) fs.unlinkSync(p);
   if (fs.existsSync(listPath)) fs.unlinkSync(listPath);
 
-  // Transcribe
-  console.log("📝 Transcribing final audio...");
-  const transcript = await transcribeAudio(buffer, "podcast.mp3");
-  console.log(`✅ Transcript: ${transcript.segments?.length || 0} segments`);
-
-  return { buffer, transcript, timeline };
+  return { buffer, timeline };
 }
