@@ -2,8 +2,15 @@ export interface NewsItem {
   audio_url: string;
   transcript_url: string;
   topic: string;
+  category: string;
   image_url: string;
   source_link: string;
+}
+
+export interface TranscriptSegment {
+  start: number;
+  end: number;
+  text: string;
 }
 
 export interface News {

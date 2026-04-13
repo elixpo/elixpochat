@@ -46,52 +46,57 @@ async function safeRetry(fn, retries = 2, wait = 5000) {
   }
 }
 
-
+/**
+ * Run the full news generation pipeline.
+ * @param {D1Database} db - Cloudflare D1 database
+ */
 export async function runNewsPipeline(db) {
   console.log("🚀 Starting news pipeline...");
   ensureTmp();
 
   let backup = loadBackup();
-  let overallId, trendingTopics, items;
+  let overallId, topicResults, items;
 
   if (backup) {
     overallId = backup.overall_id;
-    trendingTopics = backup.topics;
+    topicResults = backup.topics; // array of { title, category }
     items = backup.items;
     console.log("🗂️ Resumed from backup.");
   } else {
-    trendingTopics = await fetchTrendingTopics();
-    if (!trendingTopics.length) {
+    topicResults = await fetchTrendingTopics();
+    if (!topicResults.length) {
       console.log("⚠️ No trending topics found.");
       return;
     }
     const now = new Date().toISOString().replace(/\D/g, "");
     overallId = crypto.createHash("sha256").update(now).digest("hex").slice(0, 16);
-    items = Array.from({ length: MAX_NEWS_ITEMS }, () => ({}));
-    backup = { overall_id: overallId, topics: trendingTopics, items, summary: "", thumbnail_url: "", status: "started" };
+    items = Array.from({ length: topicResults.length }, () => ({}));
+    backup = { overall_id: overallId, topics: topicResults, items, summary: "", thumbnail_url: "", status: "started" };
     logBackup(backup);
   }
 
-  const totalItems = Math.min(trendingTopics.length, MAX_NEWS_ITEMS);
-
+  const totalItems = Math.min(topicResults.length, MAX_NEWS_ITEMS);
 
   for (let index = 0; index < totalItems; index++) {
-    const topic = trendingTopics[index];
+    const { title: topic, category } = topicResults[index];
     const newsId = crypto.createHash("sha256").update(`${topic}-${index}-${overallId}`).digest("hex").slice(0, 16);
     const item = items[index] || {};
     item.news_id = item.news_id || newsId;
     item.topic = item.topic || topic;
+    item.category = item.category || category;
 
     if (item.status === "complete") {
-      console.log(`✅ Skipping complete topic ${index}: ${topic}`);
+      console.log(`✅ Skipping complete topic ${index} [${category}]: ${topic}`);
       continue;
     }
 
-    console.log(`⚙️ Processing topic ${index + 1}/${totalItems}: ${topic}`);
+    console.log(`⚙️ [${index + 1}/${totalItems}] [${category}] ${topic}`);
 
-    const prevTopic = index > 0 ? trendingTopics[index - 1] : null;
-    const nextTopic = index < totalItems - 1 ? trendingTopics[index + 1] : null;
+    const prevTopic = index > 0 ? topicResults[index - 1].title : null;
+    const nextTopic = index < totalItems - 1 ? topicResults[index + 1].title : null;
     const voice = NEWS_VOICES[index % NEWS_VOICES.length];
+
+    // Step 1: Script
     if (!item.status || item.status === "started" || item.status?.includes("script_failed")) {
       try {
         const info = await safeRetry(() => generateNewsAnalysis(topic));
@@ -114,9 +119,10 @@ export async function runNewsPipeline(db) {
       }
     }
 
+    // Step 2: Audio + Transcript
     if (item.status === "script_generated" || item.status?.includes("audio_failed")) {
       try {
-        console.log(`🎙️ Using voice: ${voice} for topic ${index}`);
+        console.log(`🎙️ Voice: ${voice} for topic ${index}`);
         const { buffer: audioBuffer, transcript } = await safeRetry(() => generateVoiceover(item.script, index, voice));
         const folder = `${CLOUDINARY_ROOT}/${overallId}/${newsId}`;
         const audioUrl = await uploadBuffer(audioBuffer, folder, `news${index}`, "video");
@@ -127,7 +133,7 @@ export async function runNewsPipeline(db) {
         item.error = null;
         items[index] = item;
         logBackup(backup);
-        console.log(`✅ Audio uploaded for topic ${index}`);
+        console.log(`✅ Audio + transcript uploaded for topic ${index}`);
       } catch (err) {
         item.status = `news${index}_audio_failed`;
         item.error = err.message;
@@ -138,6 +144,7 @@ export async function runNewsPipeline(db) {
       }
     }
 
+    // Step 3: Image
     if (item.status === "audio_uploaded" || item.status?.includes("image_failed")) {
       try {
         const prompt = await generateVisualPrompt(item.topic);
@@ -148,7 +155,7 @@ export async function runNewsPipeline(db) {
         item.error = null;
         items[index] = item;
         logBackup(backup);
-        console.log(`✅ Image uploaded, item complete for topic ${index}`);
+        console.log(`✅ Complete: topic ${index}`);
       } catch (err) {
         item.status = `news${index}_image_failed`;
         item.error = err.message;
@@ -162,6 +169,7 @@ export async function runNewsPipeline(db) {
     await new Promise((r) => setTimeout(r, 3000));
   }
 
+  // Final: Thumbnail & Summary
   const allComplete = items.every((it) => it.status === "complete");
   if (!allComplete) {
     console.log("⚠️ Not all items complete. Final steps skipped.");
@@ -177,14 +185,18 @@ export async function runNewsPipeline(db) {
     const thumbUrl = await uploadBuffer(thumbBuffer, `${CLOUDINARY_ROOT}/${overallId}`, "newsThumbnail");
 
     const summaryText = await createCombinedNewsSummary(completedTopics);
+
     const dbItems = items.map((it) => ({
       audio_url: it.audio_url,
       transcript_url: it.transcript_url,
       topic: it.topic,
+      category: it.category,
       image_url: it.image_url,
       source_link: it.source_link,
     }));
+
     await db.prepare("INSERT OR REPLACE INTO news (id, items) VALUES (?, ?)").bind(overallId, JSON.stringify(dbItems)).run();
+
     const prevStats = await db.prepare("SELECT data FROM gen_stats WHERE key = ?").bind("news").first();
     if (prevStats) {
       const prev = JSON.parse(prevStats.data);
@@ -192,6 +204,7 @@ export async function runNewsPipeline(db) {
         await deleteFolder(`${CLOUDINARY_ROOT}/${prev.latestNewsId}`);
       }
     }
+
     const statsData = JSON.stringify({
       latestNewsId: overallId,
       latestNewsThumbnail: thumbUrl,
@@ -199,6 +212,7 @@ export async function runNewsPipeline(db) {
       latestNewsDate: new Date().toISOString(),
     });
     await db.prepare("INSERT OR REPLACE INTO gen_stats (key, data) VALUES (?, ?)").bind("news", statsData).run();
+
     fs.unlinkSync(BACKUP_FILE);
     console.log("✅ News pipeline complete!");
   } catch (err) {
