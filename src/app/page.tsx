@@ -4,7 +4,7 @@ import Navbar from "@/components/landing/Navbar";
 import Hero from "@/components/landing/Hero";
 import FeatureCards from "@/components/landing/FeatureCards";
 import ShowcaseBlock from "@/components/landing/ShowcaseBlock";
-import TechStack from "@/components/landing/TechStack";
+import ChatShowcase from "@/components/landing/ChatShowcase";
 import Footer from "@/components/landing/Footer";
 
 const DAILY_SNIPPET = `import { ElixpoDaily } from "@elixpo/components";
@@ -72,7 +72,7 @@ export default function LandingPage() {
         codeSnippet={DISCOVER_SNIPPET}
       />
 
-      <TechStack />
+      <ChatShowcase />
       <Footer />
     </main>
   );
