@@ -74,7 +74,7 @@ export async function generateNewsScript(analysisContent, prevTopic, nextTopic, 
     "- NO repeated greetings after the opening. Each turn starts by reacting to what was just said.\n" +
     "- NO overlapping content — each anchor adds NEW info.\n" +
     "- STRICT WORD LIMIT: 100-120 words total. This produces ~1-1.3 minutes of audio.\n" +
-    "- CRITICAL: Output ONLY spoken words with [MALE]/[FEMALE] tags. NO markdown, NO bold, NO asterisks, NO stage directions.\n" +
+    "- CRITICAL: Output ONLY the exact spoken words with [MALE]/[FEMALE] tags. NO markdown, NO bold, NO asterisks, NO stage directions, NO parentheticals, NO words like (pause), (laughs), (sighs). The script will be read VERBATIM by a TTS engine — every word you write will be spoken out loud, so write ONLY words meant to be heard.\n" +
     'Return as JSON: {"script": "...", "source_link": "..."}';
 
   const raw = await chatCompletion({
