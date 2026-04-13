@@ -44,19 +44,11 @@ export default function ChatPage() {
 
       {/* Main chat area */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <header className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100 flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <Link href="/" className="flex items-center gap-2">
-              <img src="/images/logo.png" alt="Elixpo" width={28} height={28} className="rounded-md" />
-              <span className="font-bold text-sm text-neutral-900">Elixpo Chat</span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-3">
-            <Link href="/chat/new" className="px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 transition-colors">+ New chat</Link>
-            <span className="text-[10px] text-neutral-300 font-mono">{sessionId ? sessionId.slice(0, 8) : "new"}</span>
-          </div>
-        </header>
+        {/* Navbar */}
+        <div className="flex-shrink-0">
+          <Navbar />
+          <div className="h-[52px]" /> {/* spacer for fixed navbar */}
+        </div>
 
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6" style={{ scrollbarWidth: "thin" }}>

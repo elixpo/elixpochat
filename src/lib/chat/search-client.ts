@@ -1,9 +1,9 @@
 /**
  * ElixSearch API client for chat.elixpo.com
- * Handles SSE streaming, sessions, and image uploads.
+ * All requests go through /api/chat proxy to avoid CORS.
  */
 
-const SEARCH_BASE = "https://search.elixpo.com";
+const PROXY = "/api/chat";
 
 export interface ChatMessage {
   role: "user" | "assistant" | "system";
@@ -30,21 +30,18 @@ export interface ChatResponse {
 }
 
 /**
- * Send a chat request (non-streaming). Returns full response.
+ * Send a chat request (non-streaming).
  */
-export async function chatCompletion(apiKey: string, request: ChatRequest): Promise<ChatResponse> {
-  const res = await fetch(`${SEARCH_BASE}/v1/chat/completions`, {
+export async function chatCompletion(request: ChatRequest): Promise<ChatResponse> {
+  const res = await fetch(PROXY, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${apiKey}`,
-    },
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ...request, stream: false }),
   });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error?.message || `Search API error: ${res.status}`);
+    throw new Error(err.error?.message || `API error: ${res.status}`);
   }
 
   return res.json();
@@ -52,11 +49,8 @@ export async function chatCompletion(apiKey: string, request: ChatRequest): Prom
 
 /**
  * Send a chat request with SSE streaming.
- * Calls onChunk for each text delta, onTask for <TASK> blocks,
- * and onDone when the stream ends.
  */
 export async function chatStream(
-  apiKey: string,
   request: ChatRequest,
   callbacks: {
     onChunk: (text: string) => void;
@@ -67,19 +61,16 @@ export async function chatStream(
   const controller = new AbortController();
 
   try {
-    const res = await fetch(`${SEARCH_BASE}/v1/chat/completions`, {
+    const res = await fetch(PROXY, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...request, stream: true }),
       signal: controller.signal,
     });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(err.error?.message || `Search API error: ${res.status}`);
+      throw new Error(err.error?.message || `API error: ${res.status}`);
     }
 
     const reader = res.body?.getReader();
@@ -102,7 +93,7 @@ export async function chatStream(
           callbacks.onChunk(delta);
         }
       } catch {
-        // Non-JSON SSE line, skip
+        // Non-JSON SSE line
       }
     };
 
@@ -113,15 +104,10 @@ export async function chatStream(
       buffer += decoder.decode(value, { stream: true });
       const lines = buffer.split("\n");
       buffer = lines.pop() || "";
-
-      for (const line of lines) {
-        processLine(line);
-      }
+      for (const line of lines) processLine(line);
     }
 
-    // Process any remaining buffer
     if (buffer) processLine(buffer);
-
     callbacks.onDone(fullText);
   } catch (err) {
     if ((err as Error).name !== "AbortError") {
@@ -135,10 +121,8 @@ export async function chatStream(
 /**
  * Create a new session.
  */
-export async function createSession(apiKey: string): Promise<string> {
-  const res = await fetch(`${SEARCH_BASE}/api/session/create`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
+export async function createSession(): Promise<string> {
+  const res = await fetch(`${PROXY}?action=create_session`);
   if (!res.ok) throw new Error(`Session create failed: ${res.status}`);
   const data = await res.json();
   return data.session_id;
@@ -147,10 +131,8 @@ export async function createSession(apiKey: string): Promise<string> {
 /**
  * Get session history.
  */
-export async function getSession(apiKey: string, sessionId: string): Promise<ChatMessage[]> {
-  const res = await fetch(`${SEARCH_BASE}/api/session/${sessionId}`, {
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
+export async function getSession(sessionId: string): Promise<ChatMessage[]> {
+  const res = await fetch(`${PROXY}?action=get_session&session_id=${sessionId}`);
   if (!res.ok) return [];
   const data = await res.json();
   return data.messages || [];
@@ -159,9 +141,6 @@ export async function getSession(apiKey: string, sessionId: string): Promise<Cha
 /**
  * Delete a session.
  */
-export async function deleteSession(apiKey: string, sessionId: string): Promise<void> {
-  await fetch(`${SEARCH_BASE}/api/session/${sessionId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${apiKey}` },
-  });
+export async function deleteSession(sessionId: string): Promise<void> {
+  await fetch(`${PROXY}?session_id=${sessionId}`, { method: "DELETE" });
 }

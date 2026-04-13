@@ -1,9 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { chatStream, createSession, getSession, type ChatMessage } from "./search-client";
-
-const API_KEY = process.env.NEXT_PUBLIC_ELIXSEARCH_API_KEY || "";
+import { chatStream, getSession } from "./search-client";
 
 export interface DisplayMessage {
   id: string;
@@ -36,9 +34,8 @@ export function useChat(initialSessionId?: string) {
 
   /** Load existing session */
   const loadSession = useCallback(async (sid: string) => {
-    if (!API_KEY) return;
     try {
-      const history = await getSession(API_KEY, sid);
+      const history = await getSession(sid);
       const displayMsgs: DisplayMessage[] = history.map((msg, i) => {
         const { tasks, cleanContent } = parseTaskBlocks(typeof msg.content === "string" ? msg.content : "");
         return {
@@ -58,18 +55,12 @@ export function useChat(initialSessionId?: string) {
   /** Send a message */
   const sendMessage = useCallback(async (content: string, images?: string[]) => {
     if (!content.trim() && !images?.length) return;
-    if (!API_KEY) { console.error("NEXT_PUBLIC_ELIXSEARCH_API_KEY not set"); return; }
 
-    // Create session if needed
+    // Generate session ID on first message (no separate create call needed)
     let sid = sessionId;
     if (!sid) {
-      try {
-        sid = await createSession(API_KEY);
-        setSessionId(sid);
-      } catch (err) {
-        console.error("Failed to create session:", err);
-        return;
-      }
+      sid = crypto.randomUUID().slice(0, 11);
+      setSessionId(sid);
     }
 
     // Build user message content
@@ -100,7 +91,6 @@ export function useChat(initialSessionId?: string) {
     streamTextRef.current = "";
 
     const controller = await chatStream(
-      API_KEY,
       {
         messages: [{ role: "user", content: userContent }],
         session_id: sid,
