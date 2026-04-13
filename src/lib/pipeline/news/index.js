@@ -134,9 +134,9 @@ export async function runNewsPipeline(db) {
       try {
         console.log(`🎙️ Voice: ${voice} for topic ${index}`);
         const { buffer: audioBuffer, transcript } = await safeRetry(() => generateVoiceover(item.script, index, voice));
-        const folder = `${CLOUDINARY_ROOT}/${overallId}/${newsId}`;
-        const audioUrl = await uploadBuffer(audioBuffer, folder, `news${index}`, "video");
-        const transcriptUrl = await uploadBuffer(Buffer.from(JSON.stringify(transcript)), folder, `news${index}_transcript`, "raw");
+        const itemFolder = `${CLOUDINARY_ROOT}/item_${index}`;
+        const audioUrl = await uploadBuffer(audioBuffer, itemFolder, "audio", "video");
+        const transcriptUrl = await uploadBuffer(Buffer.from(JSON.stringify(transcript)), itemFolder, "transcript", "raw");
         item.audio_url = audioUrl;
         item.transcript_url = transcriptUrl;
         item.status = "audio_uploaded";
@@ -165,7 +165,7 @@ export async function runNewsPipeline(db) {
         fs.writeFileSync(bannerTmpPath, imgBuffer);
         console.log(`  💾 Banner saved → ${bannerTmpPath}`);
 
-        const imageUrl = await uploadBuffer(imgBuffer, `${CLOUDINARY_ROOT}/${overallId}/${newsId}`, "newsBackground");
+        const imageUrl = await uploadBuffer(imgBuffer, `${CLOUDINARY_ROOT}/item_${index}`, "banner");
         item.image_url = imageUrl;
         item.status = "complete";
         item.error = null;
@@ -203,7 +203,7 @@ export async function runNewsPipeline(db) {
     fs.writeFileSync(thumbTmpPath, thumbBuffer);
     console.log(`  💾 Thumbnail saved → ${thumbTmpPath}`);
 
-    const thumbUrl = await uploadBuffer(thumbBuffer, `${CLOUDINARY_ROOT}/${overallId}`, "newsThumbnail");
+    const thumbUrl = await uploadBuffer(thumbBuffer, CLOUDINARY_ROOT, "thumbnail");
 
     const summaryText = await createCombinedNewsSummary(completedTopics);
 
