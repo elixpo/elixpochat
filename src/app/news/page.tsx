@@ -178,14 +178,27 @@ export default function NewsPage() {
           </div>
         )}
 
-        {/* Story title as rolling subtitle */}
-        <div className="flex-shrink-0 px-6 mb-2">
-          <div className="max-w-lg mx-auto text-center min-h-[40px] flex items-center justify-center">
-            <p key={currentIdx} className="text-sm text-white/80 font-medium leading-snug animate-[fadeUp_0.3s_ease-out]">
-              {loading ? headline : (currentItem?.topic || headline)}
-            </p>
+        {/* Rolling CC subtitle */}
+        {showCaptions && (
+          <div className="flex-shrink-0 px-6 mb-2">
+            <div className="max-w-lg mx-auto text-center min-h-[52px] flex flex-col items-center justify-end">
+              {activeSubLine ? (
+                <>
+                  <span className={`text-[9px] uppercase tracking-widest font-bold mb-1 ${activeSubLine.speaker === "female" ? "text-pink-400/70" : "text-blue-400/70"}`}>
+                    {activeSubLine.speaker === "female" ? "Liza" : "Lix"}
+                  </span>
+                  <p key={`${activeSubLine.start}-${activeSubLine.text.slice(0,20)}`} className="text-sm text-white/85 font-medium leading-snug animate-[fadeUp_0.25s_ease-out]">
+                    {activeSubLine.text}
+                  </p>
+                </>
+              ) : (
+                <p key={currentIdx} className="text-sm text-white/60 font-medium leading-snug animate-[fadeUp_0.3s_ease-out]">
+                  {loading ? headline : (currentItem?.topic || headline)}
+                </p>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ═══ PLAYER ═══ */}
         <div className="flex-shrink-0 px-4 pb-6 pt-2">
@@ -207,7 +220,13 @@ export default function NewsPage() {
                   ) : <span className="text-[10px] text-white/20 italic">Elixpo Daily</span>}
                 </div>
               </div>
-              {/* Story counter */}
+              {/* CC + counter */}
+              <button
+                onClick={() => setShowCaptions(!showCaptions)}
+                className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider border transition-all cursor-pointer ${
+                  showCaptions ? "bg-white/15 border-white/20 text-white/80" : "bg-transparent border-white/8 text-white/25 hover:text-white/45"
+                }`}
+              >CC</button>
               <span className="text-[10px] text-white/30 font-mono">{currentIdx + 1}/{items.length}</span>
             </div>
 
