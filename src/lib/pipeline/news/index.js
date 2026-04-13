@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 
 import { MAX_NEWS_ITEMS, NEWS_VOICES } from "../config.js";
-import { uploadBuffer, deleteFolder } from "../storage.js";
+import { uploadBuffer } from "../storage.js";
 import { fetchTrendingTopics } from "./topics.js";
 import { generateNewsAnalysis, generateNewsScript } from "./analysis.js";
 import { generateVoiceover } from "./voiceover.js";
@@ -218,13 +218,7 @@ export async function runNewsPipeline(db) {
 
     await db.prepare("INSERT OR REPLACE INTO news (id, items) VALUES (?, ?)").bind(overallId, JSON.stringify(dbItems)).run();
 
-    const prevStats = await db.prepare("SELECT data FROM gen_stats WHERE key = ?").bind("news").first();
-    if (prevStats) {
-      const prev = JSON.parse(prevStats.data);
-      if (prev.latestNewsId && prev.latestNewsId !== overallId) {
-        await deleteFolder(`${CLOUDINARY_ROOT}/${prev.latestNewsId}`);
-      }
-    }
+    // No need to delete old folder — fixed paths overwrite in-place
 
     const statsData = JSON.stringify({
       latestNewsId: overallId,
