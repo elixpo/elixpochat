@@ -117,9 +117,12 @@ export async function runNewsPipeline(db) {
     if (item.status === "script_generated" || item.status?.includes("audio_failed")) {
       try {
         console.log(`🎙️ Using voice: ${voice} for topic ${index}`);
-        const audioBuffer = await safeRetry(() => generateVoiceover(item.script, index, voice));
-        const audioUrl = await uploadBuffer(audioBuffer, `${CLOUDINARY_ROOT}/${overallId}/${newsId}`, `news${index}`, "video");
+        const { buffer: audioBuffer, transcript } = await safeRetry(() => generateVoiceover(item.script, index, voice));
+        const folder = `${CLOUDINARY_ROOT}/${overallId}/${newsId}`;
+        const audioUrl = await uploadBuffer(audioBuffer, folder, `news${index}`, "video");
+        const transcriptUrl = await uploadBuffer(Buffer.from(JSON.stringify(transcript)), folder, `news${index}_transcript`, "raw");
         item.audio_url = audioUrl;
+        item.transcript_url = transcriptUrl;
         item.status = "audio_uploaded";
         item.error = null;
         items[index] = item;
@@ -176,6 +179,7 @@ export async function runNewsPipeline(db) {
     const summaryText = await createCombinedNewsSummary(completedTopics);
     const dbItems = items.map((it) => ({
       audio_url: it.audio_url,
+      transcript_url: it.transcript_url,
       topic: it.topic,
       image_url: it.image_url,
       source_link: it.source_link,

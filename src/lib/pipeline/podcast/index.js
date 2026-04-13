@@ -83,15 +83,17 @@ export async function runPodcastPipeline(db) {
     console.log("✅ Script generated.");
   }
 
-  // Speech
+  // Speech + transcript
   if (backup.status === "script_generated") {
     console.log("🔊 Generating speech...");
-    const speechBuffer = await generatePodcastSpeech(podcastScript || backup.podcast_script);
+    const { buffer: speechBuffer, transcript } = await generatePodcastSpeech(podcastScript || backup.podcast_script);
     const audioUrl = await uploadBuffer(speechBuffer, folder, "audio", "video");
+    const transcriptUrl = await uploadBuffer(Buffer.from(JSON.stringify(transcript)), folder, "transcript", "raw");
     backup.audio_url = audioUrl;
+    backup.transcript_url = transcriptUrl;
     backup.status = "speech_uploaded";
     logBackup(backup);
-    console.log("✅ Speech uploaded.");
+    console.log("✅ Speech + transcript uploaded.");
   }
 
   // Background music
