@@ -31,10 +31,16 @@ function extractSources(text: string): { sources: { domain: string; url: string 
   let cleanText = text.replace(/\n*-{3,}\n\*{0,2}Sources?\*{0,2}:?.*(?:\n.*)*$/i, "");
   // Fallback: strip **Sources:** block without --- separator
   cleanText = cleanText.replace(/\n*\*{0,2}Sources?\*{0,2}:?\s*\n(?:\s*\d+\.\s*\[.*?\]\(.*?\)\s*\n?)+/gi, "");
-  // Remove any remaining inline markdown links
-  cleanText = cleanText.replace(/\[([^\]]*)\]\(https?:\/\/[^)]+\)/g, "");
-  // Remove any remaining bare URLs
-  cleanText = cleanText.replace(/https?:\/\/[^\s)]+/g, "");
+  // Remove any remaining inline markdown links (but keep elixpo image links)
+  cleanText = cleanText.replace(/\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g, (_, _text, url) => {
+    if (/search\.elixpo\.com\/api\/image\//.test(url)) return url;
+    return "";
+  });
+  // Remove any remaining bare URLs (but keep elixpo image links)
+  cleanText = cleanText.replace(/https?:\/\/[^\s)]+/g, (url) => {
+    if (/search\.elixpo\.com\/api\/image\//.test(url)) return url;
+    return "";
+  });
   // Clean up excess blank lines
   cleanText = cleanText.replace(/\n{3,}/g, "\n\n").trim();
 
@@ -42,12 +48,17 @@ function extractSources(text: string): { sources: { domain: string; url: string 
 }
 
 function renderMarkdown(text: string): string {
-  // Auto-embed standalone image URLs
-  const withImages = text.replace(
+  // Convert elixpo image URLs to proxied image embeds
+  let processed = text.replace(
+    /https?:\/\/search\.elixpo\.com\/api\/image\/([a-f0-9-]+)/gi,
+    (_, id) => `![Generated image](/api/image?id=${id})`
+  );
+  // Auto-embed standalone image URLs (png, jpg, etc.)
+  processed = processed.replace(
     /(?<![(\[!])\bhttps?:\/\/\S+\.(?:png|jpg|jpeg|gif|webp|svg)(?:\?\S*)?/gi,
     (url) => `![](${url})`
   );
-  return marked.parse(withImages) as string;
+  return marked.parse(processed) as string;
 }
 
 interface MessageBubbleProps {
@@ -141,7 +152,7 @@ export default function MessageBubble({ message, onRetry }: MessageBubbleProps) 
       {/* Main content */}
       {message.content ? (
         <div
-          className="prose prose-neutral prose-sm max-w-none text-neutral-800 leading-relaxed
+          className="prose prose-neutral prose-sm max-w-none text-neutral-800 leading-relaxed select-text
             [&_img]:rounded-xl [&_img]:my-3 [&_img]:max-h-80
             [&_a]:text-blue-600 [&_a]:no-underline [&_a:hover]:underline
             [&_code]:bg-neutral-100 [&_code]:text-neutral-800 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[13px]
