@@ -68,16 +68,8 @@ function TaskIcon({ type, className }: { type: TaskType; className?: string }) {
   }
 }
 
-function typeColor(type: TaskType): string {
-  switch (type) {
-    case "search": return "text-blue-400";
-    case "memory": return "text-violet-400";
-    case "time": return "text-amber-400";
-    case "done": return "text-emerald-400";
-    case "read": return "text-cyan-400";
-    case "think": return "text-orange-400";
-    default: return "text-neutral-400";
-  }
+function typeColor(): string {
+  return "text-neutral-400";
 }
 
 export default function TaskGroup({ tasks, isStreaming }: TaskGroupProps) {
@@ -118,7 +110,7 @@ export default function TaskGroup({ tasks, isStreaming }: TaskGroupProps) {
             const isDone = type === "done";
             return (
               <div key={i} className="flex items-center gap-2.5">
-                <TaskIcon type={type} className={typeColor(type)} />
+                <TaskIcon type={type} className={typeColor()} />
                 <span className={`text-[13px] leading-snug ${isDone ? "font-semibold text-emerald-500" : "text-neutral-500"}`}>
                   {task}
                 </span>

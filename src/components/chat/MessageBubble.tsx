@@ -7,10 +7,15 @@ import type { DisplayMessage } from "@/lib/chat/use-chat";
 
 marked.setOptions({ breaks: true, gfm: true });
 
-/** Extract source URLs from markdown content and create pills */
-function extractSources(text: string): { domain: string; url: string; title: string }[] {
+/** Extract source URLs and strip the Sources block from content */
+function extractSources(text: string): { sources: { domain: string; url: string; title: string }[]; cleanText: string } {
   const sources: { domain: string; url: string; title: string }[] = [];
   const seen = new Set<string>();
+
+  // Strip "Sources:" / "**Sources:**" block at the end (list of URLs)
+  const cleanText = text.replace(/\n*(?:\*{0,2}Sources?\*{0,2}:?\s*\n)((?:\s*[-–•*]?\s*\[?[^\n]*https?:\/\/[^\n]+\n?)+)/gi, "").trim();
+
+  // Extract all URLs from the original text
   const urlRegex = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)|(?<!\()https?:\/\/[^\s)]+/g;
   let match;
   while ((match = urlRegex.exec(text)) !== null) {
@@ -20,11 +25,13 @@ function extractSources(text: string): { domain: string; url: string; title: str
       const domain = u.hostname.replace(/^www\./, "");
       if (!seen.has(domain)) {
         seen.add(domain);
-        sources.push({ domain, url, title: match[1] || domain });
+        // Use markdown link text, or derive a readable title from the path
+        const pathTitle = u.pathname.replace(/\//g, " ").replace(/[-_]/g, " ").trim().slice(0, 60);
+        sources.push({ domain, url, title: match[1] || pathTitle || domain });
       }
     } catch { /* */ }
   }
-  return sources;
+  return { sources, cleanText };
 }
 
 function renderMarkdown(text: string): string {
@@ -43,8 +50,11 @@ interface MessageBubbleProps {
 
 export default function MessageBubble({ message, onRetry }: MessageBubbleProps) {
   const isUser = message.role === "user";
-  const html = useMemo(() => (isUser ? null : renderMarkdown(message.content)), [message.content, isUser]);
-  const sources = useMemo(() => (isUser ? [] : extractSources(message.content)), [message.content, isUser]);
+  const { sources, cleanText } = useMemo(() => {
+    if (isUser) return { sources: [], cleanText: message.content };
+    return extractSources(message.content);
+  }, [message.content, isUser]);
+  const html = useMemo(() => (isUser ? null : renderMarkdown(cleanText)), [cleanText, isUser]);
   const [copied, setCopied] = useState(false);
   const [liked, setLiked] = useState<"like" | "dislike" | null>(null);
 
@@ -105,20 +115,19 @@ export default function MessageBubble({ message, onRetry }: MessageBubbleProps) 
         <span className="inline-block w-0.5 h-4 bg-neutral-500 animate-pulse rounded-full align-text-bottom" />
       )}
 
-      {/* Source pills */}
+      {/* Source chips */}
       {!message.isStreaming && sources.length > 0 && (
-        <div className="flex flex-wrap gap-2 mt-3">
+        <div className="flex flex-col gap-1.5 mt-4">
           {sources.slice(0, 6).map((s, i) => (
             <a
               key={i}
               href={s.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-neutral-200 bg-white hover:bg-neutral-50 transition-colors text-xs"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 transition-colors w-fit max-w-sm"
             >
-              <img src={`https://www.google.com/s2/favicons?domain=${s.domain}&sz=32`} alt="" width={14} height={14} className="rounded-sm" />
-              <span className="text-neutral-700 font-medium truncate max-w-[120px]">{s.title}</span>
-              <span className="text-neutral-400">{s.domain}</span>
+              <img src={`https://www.google.com/s2/favicons?domain=${s.domain}&sz=32`} alt="" width={16} height={16} className="rounded-sm flex-shrink-0 opacity-70" />
+              <span className="text-[13px] text-neutral-200 truncate">{s.title}</span>
             </a>
           ))}
         </div>
