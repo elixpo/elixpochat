@@ -27,12 +27,14 @@ function extractSources(text: string): { sources: { domain: string; url: string 
     } catch { /* */ }
   }
 
-  // Strip everything from "Sources" heading to the end (covers **Sources:**, Sources:, etc.)
-  let cleanText = text.replace(/\n*\*{0,2}Sources?\*{0,2}:?[\t ]*\n[\s\S]*$/i, "");
-  // Strip standalone bare URLs on their own line
-  cleanText = cleanText.replace(/^\s*https?:\/\/[^\s]+\s*$/gm, "");
-  // Strip markdown-link-only lines
-  cleanText = cleanText.replace(/^\s*[-–•*]?\s*\[[^\]]*\]\(https?:\/\/[^)]+\)\s*$/gm, "");
+  // Strip a "Sources" / "References" section only when it's a standalone heading line followed by a list of links/numbers
+  let cleanText = text.replace(/\n+#{0,4}\s*\*{0,2}(?:Sources?|References?)\*{0,2}:?\s*\n(?:\s*(?:\d+[.)]\s*|\s*[-–•*]\s*)?(?:\[.*?\]\(.*?\)|https?:\/\/\S+|[^\n]*(?:https?:\/\/|\.com|\.org|\.net)\S*)\s*\n?)+/gi, "");
+  // Remove inline markdown links entirely (text + URL)
+  cleanText = cleanText.replace(/\[([^\]]*)\]\(https?:\/\/[^)]+\)/g, "");
+  // Remove any remaining bare URLs
+  cleanText = cleanText.replace(/https?:\/\/[^\s)]+/g, "");
+  // Remove leftover numbered/bulleted empty list items (e.g. "1. ", "- ")
+  cleanText = cleanText.replace(/^\s*(\d+[.)]\s*|[-–•*]\s*)$/gm, "");
   // Clean up excess blank lines
   cleanText = cleanText.replace(/\n{3,}/g, "\n\n").trim();
 
@@ -86,7 +88,10 @@ export default function MessageBubble({ message, onRetry }: MessageBubbleProps) 
           setMetas((prev) => {
             const updated = [...prev];
             if (updated[i]) {
-              updated[i] = { ...updated[i], title: data.title || s.domain, description: data.description || "", loading: false };
+              const denied = /access\s*denied|forbidden|blocked/i;
+              const title = denied.test(data.title) ? "" : data.title;
+              const desc = denied.test(data.description) ? "" : data.description;
+              updated[i] = { ...updated[i], title: title || s.domain, description: desc, loading: false };
             }
             return updated;
           });
