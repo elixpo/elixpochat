@@ -54,16 +54,12 @@ function extractContent(text: string): {
     } catch { /* */ }
   }
 
-  // Strip "Sources:" block (---\n**Sources:**\n... to end)
-  let cleanText = text.replace(/\n*-{3,}\n\*{0,2}Sources?\*{0,2}:?.*(?:\n.*)*$/i, "");
-  // Fallback: strip **Sources:** without --- separator
-  cleanText = cleanText.replace(/\n*\*{0,2}Sources?\*{0,2}:?\s*\n(?:\s*\d+\.\s*\[.*?\]\(.*?\)\s*\n?)+/gi, "");
-  // Strip "Related Images:" block
-  cleanText = cleanText.replace(/\n*\*{0,2}Related\s+Images?\*{0,2}:?\s*\n(?:.*\n?)*/gi, (block) => {
-    // Only strip if the block contains image URLs
-    if (/https?:\/\/\S+/i.test(block)) return "";
-    return block;
-  });
+  // Strip "Sources:" / "Related Images:" blocks (---\n**heading**\n... to end)
+  let cleanText = text.replace(/\n*-{3,}\n\*{0,2}(?:Sources?|Related\s+Images?)\*{0,2}:?.*(?:\n.*)*$/i, "");
+  // Fallback: strip these headings without --- separator (heading + numbered list to end)
+  cleanText = cleanText.replace(/\n*\*{0,2}(?:Sources?|Related\s+Images?)\*{0,2}:?\s*\n(?:\s*\d+\.\s*\[.*?\]\(.*?\)\s*\n?)+/gi, "");
+  // Catch any remaining standalone heading lines for these sections
+  cleanText = cleanText.replace(/^\s*\*{0,2}(?:Sources?|Related\s+Images?)\*{0,2}:?\s*$/gim, "");
   // Remove all markdown image links ![text](url)
   cleanText = cleanText.replace(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g, "");
   // Remove all markdown links [text](url)
@@ -235,13 +231,15 @@ export default function MessageBubble({ message, onRetry }: MessageBubbleProps) 
       {!message.isStreaming && relatedImages.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4">
           {relatedImages.map((src, i) => (
-            <a key={i} href={src} target="_blank" rel="noopener noreferrer">
+            <a key={i} href={src} target="_blank" rel="noopener noreferrer" className="relative block">
+              <div className="w-full h-36 rounded-xl bg-neutral-100 animate-pulse absolute inset-0" />
               <img
                 src={src}
                 alt=""
                 loading="lazy"
-                className="w-full h-36 object-cover rounded-xl border border-neutral-200 hover:border-neutral-300 transition-colors bg-neutral-50"
-                onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                className="relative w-full h-36 object-cover rounded-xl border border-neutral-200 hover:border-neutral-300 transition-colors bg-neutral-50"
+                onLoad={(e) => { (e.target as HTMLImageElement).previousElementSibling?.remove(); }}
+                onError={(e) => { const el = e.target as HTMLImageElement; el.previousElementSibling?.remove(); el.style.display = "none"; }}
               />
             </a>
           ))}
