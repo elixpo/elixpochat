@@ -25,14 +25,21 @@ export default function ChatPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { user, loading: authLoading, login } = useAuth();
-  const { messages, isLoading, isLoadingHistory, sessionId, chatTitle, sendMessage, stopStreaming, loadSession, retryLast } = useChat(id === "new" ? undefined : id);
+  const { messages, isLoading, isLoadingHistory, sessionId, chatTitle, setChatTitle, sendMessage, stopStreaming, loadSession, retryLast } = useChat(id === "new" ? undefined : id);
   const scrollRef = useRef<HTMLDivElement>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [model, setModel] = useState("lixsearch");
   const [sharecopied, setShareCopied] = useState(false);
 
-  useEffect(() => { if (id !== "new" && id) loadSession(id); }, [id, loadSession]);
-  useEffect(() => { if (sessionId && id === "new") router.replace(`/chat/${sessionId}`, { scroll: false }); }, [sessionId, id, router]);
+  // Load existing session or replace URL for new chat
+  useEffect(() => {
+    if (id === "new" && sessionId) {
+      router.replace(`/chat/${sessionId}`, { scroll: false });
+    } else if (id !== "new" && id) {
+      loadSession(id);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => { if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight; }, [messages]);
 
   const handleShare = () => {
@@ -66,9 +73,13 @@ export default function ChatPage() {
         <header className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-100 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
             <img src="/images/logo.png" alt="" width={24} height={24} className="rounded-md flex-shrink-0 opacity-50" />
-            <h1 className="text-sm font-medium text-neutral-700 truncate">
-              {chatTitle || (id === "new" ? "New chat" : "Chat")}
-            </h1>
+            <input
+              type="text"
+              value={chatTitle || ""}
+              onChange={(e) => setChatTitle(e.target.value)}
+              placeholder="New chat"
+              className="text-sm font-medium text-neutral-700 bg-transparent outline-none border-none truncate min-w-0 hover:bg-neutral-50 focus:bg-neutral-50 rounded px-1.5 py-0.5 -ml-1.5 transition-colors"
+            />
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {sessionId && (

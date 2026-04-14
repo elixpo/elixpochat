@@ -50,7 +50,6 @@ export function useChat(initialSessionId?: string) {
         };
       });
       setMessages(displayMsgs);
-      setSessionId(sid);
       // Derive title from first user message
       const firstUser = displayMsgs.find((m) => m.role === "user");
       if (firstUser) setChatTitle(firstUser.content.slice(0, 50) + (firstUser.content.length > 50 ? "..." : ""));
@@ -64,12 +63,7 @@ export function useChat(initialSessionId?: string) {
   const sendMessage = useCallback(async (content: string, images?: string[]) => {
     if (!content.trim() && !images?.length) return;
 
-    // Generate session ID on first message (no separate create call needed)
-    let sid = sessionId;
-    if (!sid) {
-      sid = crypto.randomUUID().slice(0, 11);
-      setSessionId(sid);
-    }
+    const sid = sessionId;
 
     // Build user message content
     const userContent: ChatMessage["content"] = images?.length
@@ -197,6 +191,7 @@ export function useChat(initialSessionId?: string) {
     isLoadingHistory,
     sessionId,
     chatTitle,
+    setChatTitle,
     sendMessage,
     stopStreaming,
     loadSession,
