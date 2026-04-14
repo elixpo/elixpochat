@@ -2,7 +2,7 @@
 
 import { marked } from "marked";
 import { useMemo, useState } from "react";
-import TaskBlock from "./TaskBlock";
+import TaskGroup from "./TaskBlock";
 import type { DisplayMessage } from "@/lib/chat/use-chat";
 
 marked.setOptions({ breaks: true, gfm: true });
@@ -73,10 +73,10 @@ export default function MessageBubble({ message, onRetry }: MessageBubbleProps) 
   // Assistant message — left/center, no bubble bg
   return (
     <div className="max-w-3xl">
-      {/* Task blocks (intermediate processing) */}
-      {message.taskBlocks?.map((task, i) => (
-        <TaskBlock key={i} content={task} isLast={message.isStreaming && i === (message.taskBlocks?.length || 0) - 1} />
-      ))}
+      {/* Task group — single collapsible header for all tasks */}
+      {message.taskBlocks && message.taskBlocks.length > 0 && (
+        <TaskGroup tasks={message.taskBlocks} isStreaming={!!message.isStreaming} />
+      )}
 
       {/* Main content */}
       {message.content ? (

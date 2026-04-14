@@ -30,18 +30,10 @@ export default function ChatPage() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [model, setModel] = useState("lixsearch");
   const [sharecopied, setShareCopied] = useState(false);
-  const isOwnSession = useRef(false);
-
+  // Replace /chat/new with the real session ID immediately
   useEffect(() => {
     if (id === "new" && sessionId) {
-      isOwnSession.current = true;
       router.replace(`/chat/${sessionId}`, { scroll: false });
-    } else if (id !== "new" && id && id === sessionId) {
-      // This is our own session (URL was just replaced), don't reload
-      isOwnSession.current = true;
-    } else if (id !== "new" && id) {
-      // Navigating to someone else's or old session — load history
-      loadSession(id);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
