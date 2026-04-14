@@ -27,14 +27,14 @@ function extractSources(text: string): { sources: { domain: string; url: string 
     } catch { /* */ }
   }
 
-  // Strip a "Sources" / "References" section only when it's a standalone heading line followed by a list of links/numbers
-  let cleanText = text.replace(/\n+#{0,4}\s*\*{0,2}(?:Sources?|References?)\*{0,2}:?\s*\n(?:\s*(?:\d+[.)]\s*|\s*[-–•*]\s*)?(?:\[.*?\]\(.*?\)|https?:\/\/\S+|[^\n]*(?:https?:\/\/|\.com|\.org|\.net)\S*)\s*\n?)+/gi, "");
-  // Remove inline markdown links entirely (text + URL)
+  // Strip the entire sources block: ---\n**Sources:**\n1. [domain](url)\n...
+  let cleanText = text.replace(/\n*-{3,}\n\*{0,2}Sources?\*{0,2}:?.*(?:\n.*)*$/i, "");
+  // Fallback: strip **Sources:** block without --- separator
+  cleanText = cleanText.replace(/\n*\*{0,2}Sources?\*{0,2}:?\s*\n(?:\s*\d+\.\s*\[.*?\]\(.*?\)\s*\n?)+/gi, "");
+  // Remove any remaining inline markdown links
   cleanText = cleanText.replace(/\[([^\]]*)\]\(https?:\/\/[^)]+\)/g, "");
   // Remove any remaining bare URLs
   cleanText = cleanText.replace(/https?:\/\/[^\s)]+/g, "");
-  // Remove leftover numbered/bulleted empty list items (e.g. "1. ", "- ")
-  cleanText = cleanText.replace(/^\s*(\d+[.)]\s*|[-–•*]\s*)$/gm, "");
   // Clean up excess blank lines
   cleanText = cleanText.replace(/\n{3,}/g, "\n\n").trim();
 
