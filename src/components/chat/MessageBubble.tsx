@@ -1,21 +1,18 @@
 "use client";
 
 import { marked } from "marked";
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import TaskGroup from "./TaskBlock";
 import type { DisplayMessage } from "@/lib/chat/use-chat";
 
 marked.setOptions({ breaks: true, gfm: true });
 
-/** Extract source URLs and strip the Sources block from content */
+/** Extract source URLs and strip all source references from content */
 function extractSources(text: string): { sources: { domain: string; url: string; title: string }[]; cleanText: string } {
   const sources: { domain: string; url: string; title: string }[] = [];
   const seen = new Set<string>();
 
-  // Strip "Sources:" / "**Sources:**" block at the end (list of URLs)
-  const cleanText = text.replace(/\n*(?:\*{0,2}Sources?\*{0,2}:?\s*\n)((?:\s*[-–•*]?\s*\[?[^\n]*https?:\/\/[^\n]+\n?)+)/gi, "").trim();
-
-  // Extract all URLs from the original text
+  // Extract all URLs from the original text first
   const urlRegex = /\[([^\]]*)\]\((https?:\/\/[^)]+)\)|(?<!\()https?:\/\/[^\s)]+/g;
   let match;
   while ((match = urlRegex.exec(text)) !== null) {
@@ -25,12 +22,21 @@ function extractSources(text: string): { sources: { domain: string; url: string;
       const domain = u.hostname.replace(/^www\./, "");
       if (!seen.has(domain)) {
         seen.add(domain);
-        // Use markdown link text, or derive a readable title from the path
-        const pathTitle = u.pathname.replace(/\//g, " ").replace(/[-_]/g, " ").trim().slice(0, 60);
+        const pathTitle = u.pathname.replace(/\//g, " ").replace(/[-_]/g, " ").trim().slice(0, 80);
         sources.push({ domain, url, title: match[1] || pathTitle || domain });
       }
     } catch { /* */ }
   }
+
+  // Strip "Sources:" block
+  let cleanText = text.replace(/\n*(?:\*{0,2}Sources?\*{0,2}:?\s*\n)((?:\s*[-–•*]?\s*\[?[^\n]*https?:\/\/[^\n]+\n?)+)/gi, "");
+  // Strip standalone bare URLs (lines that are just a URL)
+  cleanText = cleanText.replace(/^\s*https?:\/\/[^\s]+\s*$/gm, "");
+  // Strip markdown links that are on their own line
+  cleanText = cleanText.replace(/^\s*[-–•*]?\s*\[[^\]]*\]\(https?:\/\/[^)]+\)\s*$/gm, "");
+  // Clean up excess blank lines
+  cleanText = cleanText.replace(/\n{3,}/g, "\n\n").trim();
+
   return { sources, cleanText };
 }
 
@@ -115,19 +121,28 @@ export default function MessageBubble({ message, onRetry }: MessageBubbleProps) 
         <span className="inline-block w-0.5 h-4 bg-neutral-500 animate-pulse rounded-full align-text-bottom" />
       )}
 
-      {/* Source chips */}
+      {/* Artifact cards */}
       {!message.isStreaming && sources.length > 0 && (
-        <div className="flex flex-col gap-1.5 mt-4">
-          {sources.slice(0, 6).map((s, i) => (
+        <div className="flex flex-wrap gap-2.5 mt-4">
+          {sources.slice(0, 8).map((s, i) => (
             <a
               key={i}
               href={s.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2.5 px-3 py-2 rounded-xl bg-neutral-800 hover:bg-neutral-700 transition-colors w-fit max-w-sm"
+              className="flex items-start gap-2.5 w-56 px-3 py-2.5 rounded-xl border border-neutral-200 bg-white hover:bg-neutral-50 hover:border-neutral-300 transition-colors"
             >
-              <img src={`https://www.google.com/s2/favicons?domain=${s.domain}&sz=32`} alt="" width={16} height={16} className="rounded-sm flex-shrink-0 opacity-70" />
-              <span className="text-[13px] text-neutral-200 truncate">{s.title}</span>
+              <img
+                src={`https://www.google.com/s2/favicons?domain=${s.domain}&sz=32`}
+                alt=""
+                width={16}
+                height={16}
+                className="rounded-sm mt-0.5 shrink-0"
+              />
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-neutral-500 truncate">{s.domain}</p>
+                <p className="text-[13px] text-neutral-700 leading-snug line-clamp-2">{s.title}</p>
+              </div>
             </a>
           ))}
         </div>
