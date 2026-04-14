@@ -171,8 +171,8 @@ export default function MessageBubble({ message, onRetry }: MessageBubbleProps) 
             [&_img]:rounded-xl [&_img]:my-3 [&_img]:max-h-80
             [&_a]:text-blue-600 [&_a]:no-underline [&_a:hover]:underline
             [&_code]:bg-neutral-100 [&_code]:text-neutral-800 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-[13px]
-            [&_pre]:bg-neutral-900 [&_pre]:text-neutral-100 [&_pre]:rounded-xl [&_pre]:p-4
-            [&_pre_code]:bg-transparent [&_pre_code]:text-neutral-100 [&_pre_code]:p-0
+            [&_pre]:bg-neutral-100 [&_pre]:text-neutral-800 [&_pre]:rounded-xl [&_pre]:p-4 [&_pre]:max-w-full [&_pre]:overflow-x-auto [&_pre]:whitespace-pre-wrap [&_pre]:break-words
+            [&_pre_code]:bg-transparent [&_pre_code]:text-neutral-800 [&_pre_code]:p-0 [&_pre_code]:whitespace-pre-wrap [&_pre_code]:break-words
             [&_blockquote]:border-l-neutral-300 [&_blockquote]:text-neutral-600
             [&_table]:text-sm [&_th]:bg-neutral-50 [&_td]:border-neutral-200
             [&_h1]:text-lg [&_h2]:text-base [&_h3]:text-sm [&_h1]:font-bold [&_h2]:font-bold [&_h3]:font-semibold"
