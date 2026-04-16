@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Toaster } from "sonner";
 import { AuthProvider } from "@/components/AuthProvider";
 import "./globals.css";
 
@@ -59,7 +60,7 @@ export default function RootLayout({
           href="https://cdnjs.cloudflare.com/ajax/libs/weather-icons/2.0.12/css/weather-icons.min.css"
         />
       </head>
-      <body className="antialiased"><AuthProvider>{children}</AuthProvider></body>
+      <body className="antialiased"><AuthProvider>{children}</AuthProvider><Toaster position="bottom-right" richColors /></body>
     </html>
   );
 }
