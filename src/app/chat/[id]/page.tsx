@@ -8,18 +8,7 @@ import MessageBubble from "@/components/chat/MessageBubble";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatSidebar from "@/components/chat/ChatSidebar";
 import Navbar from "@/components/landing/Navbar";
-
-function SkeletonMessages() {
-  return (
-    <div className="max-w-3xl mx-auto space-y-6 animate-pulse">
-      {[1, 2, 3, 4].map((i) => (
-        <div key={i} className={`flex ${i % 2 === 1 ? "justify-end" : "justify-start"}`}>
-          <div className={`rounded-2xl ${i % 2 === 1 ? "bg-neutral-100 w-48" : "bg-neutral-50 w-80"} h-12`} />
-        </div>
-      ))}
-    </div>
-  );
-}
+import ChatSkeleton from "@/components/skeletons/ChatSkeleton";
 
 export default function ChatPage() {
   const { id } = useParams<{ id: string }>();
@@ -121,7 +110,7 @@ export default function ChatPage() {
         {/* Messages */}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-8" style={{ scrollbarWidth: "thin" }}>
           {isLoadingHistory ? (
-            <SkeletonMessages />
+            <ChatSkeleton />
           ) : (
             <div className="max-w-3xl mx-auto space-y-7">
               {messages.length === 0 && !isLoadingHistory && (
