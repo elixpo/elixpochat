@@ -1,7 +1,7 @@
 "use client";
 
 import { marked } from "marked";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, memo } from "react";
 import { toast } from "sonner";
 import TaskGroup from "./TaskBlock";
 import { BookmarkButton } from "./BookmarkButton";
@@ -93,7 +93,7 @@ interface SourceMeta {
   loading: boolean;
 }
 
-export default function MessageBubble({ message, onRetry, isBookmarked = false, onToggleBookmark }: MessageBubbleProps) {
+const MessageBubble = memo(function MessageBubble({ message, onRetry, isBookmarked = false, onToggleBookmark }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const { sources, images: relatedImages, cleanText } = useMemo(() => {
     if (isUser) return { sources: [], images: [], cleanText: message.content };
@@ -310,4 +310,6 @@ export default function MessageBubble({ message, onRetry, isBookmarked = false, 
       )}
     </div>
   );
-}
+});
+
+export default MessageBubble;
