@@ -4,9 +4,12 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/AuthProvider";
 import { useChat } from "@/lib/chat/use-chat";
+import { useBookmarks } from "@/lib/chat/use-bookmarks";
 import MessageBubble from "@/components/chat/MessageBubble";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatSidebar from "@/components/chat/ChatSidebar";
+import { ChatSearchDialog } from "@/components/chat/ChatSearchDialog";
+import { BookmarkedMessagesPanel } from "@/components/chat/BookmarkedMessagesPanel";
 import Navbar from "@/components/landing/Navbar";
 
 function SkeletonMessages() {
@@ -26,11 +29,14 @@ export default function ChatPage() {
   const router = useRouter();
   const { user, loading: authLoading, login } = useAuth();
   const { messages, isLoading, isLoadingHistory, sessionId, chatTitle, setChatTitle, sendMessage, stopStreaming, loadSession, retryLast } = useChat(id === "new" ? undefined : id);
+  const { toggleBookmark, isBookmarked, getBookmarkedMessages } = useBookmarks();
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [model, setModel] = useState("lixsearch");
   const [sharecopied, setShareCopied] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [bookmarksOpen, setBookmarksOpen] = useState(false);
   // Replace /chat/new with the real session ID immediately
   useEffect(() => {
     if (id === "new" && sessionId) {
@@ -81,6 +87,40 @@ export default function ChatPage() {
       <ChatSidebar collapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
 
       <div className="flex-1 flex flex-col min-w-0">
+        {/* Search & Bookmarks Dialogs */}
+        <ChatSearchDialog
+          messages={messages}
+          isOpen={searchOpen}
+          onClose={() => setSearchOpen(false)}
+          onSelectResult={(messageId) => {
+            const element = document.getElementById(`msg-${messageId}`);
+            if (element && scrollRef.current) {
+              element.scrollIntoView({ behavior: "smooth", block: "center" });
+              element.classList.add("ring-2", "ring-blue-400");
+              setTimeout(() => {
+                element.classList.remove("ring-2", "ring-blue-400");
+              }, 2000);
+            }
+          }}
+        />
+
+        <BookmarkedMessagesPanel
+          messages={getBookmarkedMessages()}
+          isOpen={bookmarksOpen}
+          onClose={() => setBookmarksOpen(false)}
+          onRemoveBookmark={toggleBookmark}
+          onSelectMessage={(messageId) => {
+            const element = document.getElementById(`msg-${messageId}`);
+            if (element && scrollRef.current) {
+              element.scrollIntoView({ behavior: "smooth", block: "center" });
+              element.classList.add("ring-2", "ring-yellow-400");
+              setTimeout(() => {
+                element.classList.remove("ring-2", "ring-yellow-400");
+              }, 2000);
+            }
+          }}
+        />
+
         {/* Header */}
         <header className="flex items-center justify-between px-5 py-3 bg-white/80 backdrop-blur-sm border-b border-neutral-100 flex-shrink-0">
           <div className="flex items-center gap-3 min-w-0">
@@ -94,6 +134,33 @@ export default function ChatPage() {
             />
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
+            {messages.length > 0 && (
+              <button
+                onClick={() => setSearchOpen(true)}
+                title="Search (Ctrl+Shift+F)"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 transition-colors cursor-pointer"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+                </svg>
+                <span className="hidden sm:inline">Search</span>
+              </button>
+            )}
+            {messages.length > 0 && (
+              <button
+                onClick={() => setBookmarksOpen(true)}
+                title="View bookmarks"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-neutral-500 hover:bg-neutral-100 transition-colors cursor-pointer relative"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+                </svg>
+                <span className="hidden sm:inline">Bookmarks</span>
+                {getBookmarkedMessages().length > 0 && (
+                  <span className="absolute top-1 right-0 w-2 h-2 bg-yellow-500 rounded-full" />
+                )}
+              </button>
+            )}
             {sessionId && (
               <button
                 onClick={handleShare}
@@ -134,8 +201,17 @@ export default function ChatPage() {
               {messages.map((msg, i) => {
                 const isLastAssistant = msg.role === "assistant" && !msg.isStreaming && i === messages.length - 1;
                 return (
-                  <div key={msg.id} className={msg.role === "user" ? "animate-msg-user" : "animate-msg-assistant"}>
-                    <MessageBubble message={msg} onRetry={isLastAssistant ? retryLast : undefined} />
+                  <div
+                    key={msg.id}
+                    id={`msg-${msg.id}`}
+                    className={`${msg.role === "user" ? "animate-msg-user" : "animate-msg-assistant"} rounded-lg transition-all`}
+                  >
+                    <MessageBubble
+                      message={msg}
+                      onRetry={isLastAssistant ? retryLast : undefined}
+                      isBookmarked={isBookmarked(msg.id)}
+                      onToggleBookmark={() => toggleBookmark(msg)}
+                    />
                   </div>
                 );
               })}

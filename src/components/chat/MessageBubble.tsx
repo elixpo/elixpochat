@@ -3,6 +3,7 @@
 import { marked } from "marked";
 import { useMemo, useState, useEffect } from "react";
 import TaskGroup from "./TaskBlock";
+import { BookmarkButton } from "./BookmarkButton";
 import type { DisplayMessage } from "@/lib/chat/use-chat";
 
 marked.setOptions({ breaks: true, gfm: true });
@@ -79,6 +80,8 @@ function renderMarkdown(text: string): string {
 interface MessageBubbleProps {
   message: DisplayMessage;
   onRetry?: () => void;
+  isBookmarked?: boolean;
+  onToggleBookmark?: () => void;
 }
 
 interface SourceMeta {
@@ -89,7 +92,7 @@ interface SourceMeta {
   loading: boolean;
 }
 
-export default function MessageBubble({ message, onRetry }: MessageBubbleProps) {
+export default function MessageBubble({ message, onRetry, isBookmarked = false, onToggleBookmark }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const { sources, images: relatedImages, cleanText } = useMemo(() => {
     if (isUser) return { sources: [], images: [], cleanText: message.content };
@@ -261,6 +264,14 @@ export default function MessageBubble({ message, onRetry }: MessageBubbleProps) 
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></svg>
             )}
           </button>
+
+          {/* Bookmark */}
+          {onToggleBookmark && (
+            <BookmarkButton
+              isBookmarked={isBookmarked}
+              onToggle={onToggleBookmark}
+            />
+          )}
 
           {/* Like */}
           <button
