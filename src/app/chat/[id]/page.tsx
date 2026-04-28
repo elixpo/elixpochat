@@ -7,7 +7,7 @@ import { useChat } from "@/lib/chat/use-chat";
 import MessageBubble from "@/components/chat/MessageBubble";
 import ChatInput from "@/components/chat/ChatInput";
 import ChatSidebar from "@/components/chat/ChatSidebar";
-import Navbar from "@/components/landing/Navbar";
+
 
 function SkeletonMessages() {
   return (
